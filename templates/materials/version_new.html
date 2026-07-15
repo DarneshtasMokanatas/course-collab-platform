@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% block content %}<section class="form-card"><h1>New version: {{ material.title }}</h1><form method="post" enctype="multipart/form-data">{% csrf_token %}{% include "includes/form_fields.html" %}<button type="submit">Upload version</button></form></section>{% endblock %}

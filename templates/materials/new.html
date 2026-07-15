@@ -1,0 +1,1 @@
+{% extends "base.html" %}{% block content %}<section class="form-card"><h1>Add material</h1><form method="post" enctype="multipart/form-data">{% csrf_token %}{% include "includes/form_fields.html" %}<button type="submit">Upload version 1</button></form></section>{% endblock %}

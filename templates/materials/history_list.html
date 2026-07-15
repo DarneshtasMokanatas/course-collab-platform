@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ course.code }} materials | Course Collaboration Platform{% endblock %}
+{% block content %}
+  <div class="page-heading"><div><p class="eyebrow">Course materials</p><h1>{{ course.code }} materials</h1></div>{% if owner %}<a class="button-link" href="{% url 'materials:new' course.id %}">Add material</a>{% endif %}</div>
+  {% if materials %}<ul class="card-list">{% for material in materials %}<li><h2>{{ material.title }}</h2><p>{{ material.description }}</p><ol>{% for version in material.versions.all %}<li>{% if forloop.last %}<strong>Current — </strong>{% endif %}Version {{ version.version_number }} · {{ version.created_at }} · <a href="{% url 'materials:download' course.id material.id version.id %}">{{ version.original_filename }}</a></li>{% endfor %}</ol>{% if owner %}<a href="{% url 'materials:version_new' course.id material.id %}">Upload new version</a>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="empty-state">No materials are available.</p>{% endif %}
+{% endblock %}
