@@ -16,6 +16,8 @@
           <a href="{% url 'dashboard' %}">Dashboard</a>
           {% if user.role == "INSTRUCTOR" %}
             <a href="{% url 'courses:list' %}">Courses</a>
+          {% else %}
+            <a href="{% url 'courses:list' %}">Catalogue</a>
           {% endif %}
           <form method="post" action="{% url 'accounts:logout' %}">
             {% csrf_token %}
