@@ -919,6 +919,8 @@ A feature is done only when:
 
 After each independently usable feature is complete, verified, and meets the definition of done, create one focused Git commit for it. Examples include authentication, course creation/enrolment, materials/versioning, announcements, assignment submission, grading, and analytics.
 
+Configured GitHub repository: https://github.com/DarneshtasMokanatas/course-collab-platform.git. Push each verified feature commit to the origin remote on the active feature branch when authentication is available.
+
 Follow this workflow:
 
 1. Review the working tree and preserve unrelated user changes.
