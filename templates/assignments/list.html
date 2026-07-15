@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Assignments | {{ course.code }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ course.code }}</p>
+  <h1>Assignments</h1>
+  <p>Deadlines and submission requirements for {{ course.title }}.</p>
+  <div class="form-actions">
+    <a class="button-link" href="{% url 'courses:detail' course.id %}">Back to course</a>
+    {% if owner %}<a class="button-link" href="{% url 'assignments:new' course.id %}">New assignment</a>{% endif %}
+  </div>
+</section>
+<section>
+  {% if assignments %}
+    <ol class="card-list">
+      {% for assignment in assignments %}
+        <li>
+          <p class="eyebrow">{{ assignment.get_status_display }}{% if assignment.section %} · {{ assignment.section.title }}{% endif %}</p>
+          <h2><a href="{% url 'assignments:detail' course.id assignment.id %}">{{ assignment.title }}</a></h2>
+          <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}</p>
+          <p>Allowed files: {{ assignment.allowed_extensions|join:", " }} · Max upload {{ assignment.max_upload_bytes }} bytes</p>
+        </li>
+      {% endfor %}
+    </ol>
+  {% else %}
+    <p class="empty-state">No assignments are available yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ assignment.title }} | {{ assignment.course.code }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <p class="eyebrow">{{ assignment.course.code }} · {{ assignment.get_status_display }}</p>
+  <h1>{{ assignment.title }}</h1>
+  <p>{{ assignment.instructions|linebreaksbr }}</p>
+  <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}</p>
+  <p>Max score: {{ assignment.max_score }} · Allowed files: {{ assignment.allowed_extensions|join:", " }}</p>
+  <div class="form-actions">
+    <a class="button-link" href="{% url 'assignments:list' assignment.course_id %}">Back to assignments</a>
+    {% if owner and assignment.status == 'DRAFT' %}
+      <form method="post" action="{% url 'assignments:publish' assignment.course_id assignment.id %}">
+        {% csrf_token %}
+        <button type="submit">Publish assignment</button>
+      </form>
+    {% endif %}
+    {% if not owner and not student_submission %}
+      <a class="button-link" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit work</a>
+    {% endif %}
+  </div>
+</section>
+{% if owner %}
+  <section>
+    <h2>Submission summary</h2>
+    <p>{{ submission_count }} student submission{{ submission_count|pluralize }} received.</p>
+  </section>
+{% else %}
+  <section>
+    <h2>Your submission</h2>
+    {% if student_submission %}
+      <ol class="card-list">
+        {% for version in student_submission.versions.all %}
+          <li>
+            <h3>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</h3>
+            <p>Received {{ version.submitted_at|date:"M j, Y, g:i A T" }}{% if version.was_late %} · Late{% else %} · On time{% endif %}</p>
+            <p>{{ version.original_filename }} · {{ version.size_bytes }} bytes</p>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty-state">No submission has been received yet.</p>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}
