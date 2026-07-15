@@ -1,0 +1,23 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Course Collaboration Platform{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="{% url 'home' %}">Course Collaboration Platform</a>
+    </header>
+    {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    <main id="main-content">{% block content %}{% endblock %}</main>
+    <footer><small>Academic course workspace</small></footer>
+  </body>
+</html>
