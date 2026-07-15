@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}My courses | Course Collaboration Platform{% endblock %}
+{% block content %}
+  <div class="page-heading"><div><p class="eyebrow">Teaching workspace</p><h1>My courses</h1></div><a class="button-link" href="{% url 'courses:new' %}">Create course</a></div>
+  {% if courses %}<ul class="card-list">{% for course in courses %}<li><h2><a href="{% url 'courses:detail' course.id %}">{{ course.code }} — {{ course.title }}</a></h2><p>{{ course.get_status_display }} · Enrolment {{ course.get_enrolment_mode_display }}</p></li>{% endfor %}</ul>{% else %}<p class="empty-state">You have not created a course yet.</p>{% endif %}
+{% endblock %}

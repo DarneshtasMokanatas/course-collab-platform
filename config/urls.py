@@ -6,6 +6,7 @@ from apps.accounts.views import dashboard
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("courses/", include("apps.courses.urls")),
     path("accounts/", include("apps.accounts.urls")),
     path("dashboard/", dashboard, name="dashboard"),
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
