@@ -118,6 +118,9 @@ AUTH_USER_MODEL = "accounts.User"
 AUTHENTICATION_BACKENDS = [
     "apps.accounts.backends.UsernameOrEmailBackend",
 ]
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "dashboard"
+LOGOUT_REDIRECT_URL = "home"
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = os.getenv("DJANGO_TIME_ZONE", "Asia/Kuala_Lumpur")

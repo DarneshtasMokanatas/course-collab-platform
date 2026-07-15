@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
   <section class="hero">
-    <p class="eyebrow">Foundation ready</p>
+    <p class="eyebrow">Course collaboration</p>
     <h1>One reliable place for course collaboration.</h1>
-    <p>Course screens will be introduced in the next delivery phase.</p>
+    <p>Manage learning materials, assignments, and course participation in one workspace.</p>
+    {% if not user.is_authenticated %}
+      <p><a class="button-link" href="{% url 'accounts:register' %}">Create an account</a></p>
+    {% endif %}
   </section>
 {% endblock %}

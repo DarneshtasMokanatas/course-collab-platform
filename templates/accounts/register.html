@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Register | Course Collaboration Platform{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <p class="eyebrow">Create an account</p>
+    <h1>Register</h1>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% include "includes/form_fields.html" %}
+      <div class="form-actions">
+        <button type="submit">Register</button>
+        <a href="{% url 'home' %}">Cancel</a>
+      </div>
+    </form>
+    <p>Already registered? <a href="{% url 'accounts:login' %}">Log in</a>.</p>
+  </section>
+{% endblock %}

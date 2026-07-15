@@ -9,13 +9,19 @@ class UsernameOrEmailBackend(ModelBackend):
         if not identity or password is None:
             return None
         user_model = get_user_model()
-        try:
-            user = user_model.objects.get(
+        candidates = list(
+            user_model.objects.filter(
                 Q(username__iexact=identity.strip()) | Q(email__iexact=identity.strip())
             )
-        except (user_model.DoesNotExist, user_model.MultipleObjectsReturned):
+        )
+        if not candidates:
             user_model().set_password(password)
             return None
-        if user.check_password(password) and self.user_can_authenticate(user):
-            return user
+        authenticated = [
+            user
+            for user in candidates
+            if user.check_password(password) and self.user_can_authenticate(user)
+        ]
+        if len(authenticated) == 1:
+            return authenticated[0]
         return None

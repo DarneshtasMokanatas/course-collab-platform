@@ -11,6 +11,10 @@ a:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; }
 .skip-link { position: absolute; left: -9999px; }
 .skip-link:focus { left: 1rem; top: 1rem; background: white; padding: .75rem; z-index: 2; }
 .site-header, footer { padding: 1rem clamp(1rem, 5vw, 4rem); background: #102a43; color: white; }
+.site-header { display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.site-header nav { display: flex; gap: 1rem; align-items: center; }
+.site-header nav a, .link-button { color: white; }
+.site-header nav form { margin: 0; }
 .brand { color: white; font-weight: 700; text-decoration: none; }
 main { width: min(72rem, 100%); margin: 0 auto; padding: clamp(2rem, 7vw, 6rem) 1rem; }
 .hero { max-width: 44rem; }
@@ -18,3 +22,16 @@ main { width: min(72rem, 100%); margin: 0 auto; padding: clamp(2rem, 7vw, 6rem) 
 .eyebrow { color: #526d82; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .messages { padding: .5rem 1rem; background: #e7f6ec; }
 footer { text-align: center; }
+.form-card { max-width: 38rem; padding: clamp(1.25rem, 4vw, 2.5rem); background: white; border-radius: .75rem; box-shadow: 0 .25rem 1rem rgb(15 23 42 / 8%); }
+.form-card h1 { margin-top: 0; }
+.form-field { margin-bottom: 1rem; }
+.form-field label { display: block; margin-bottom: .35rem; font-weight: 700; }
+.form-field input, .form-field select, .form-field textarea { width: 100%; padding: .7rem; border: 1px solid #829ab1; border-radius: .35rem; font: inherit; }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus, button:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+.help-text { margin-top: .35rem; color: #486581; font-size: .9rem; }
+.help-text ul, .field-errors ul, .form-errors ul { margin: .4rem 0; padding-left: 1.25rem; }
+.field-errors, .form-errors { color: #9b1c1c; }
+.form-actions { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+button, .button-link { display: inline-block; border: 0; border-radius: .35rem; padding: .7rem 1rem; background: #174ea6; color: white; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
+.link-button { padding: 0; background: transparent; text-decoration: underline; font-weight: 400; }
+@media (max-width: 30rem) { .site-header { align-items: flex-start; } .site-header nav { width: 100%; } }

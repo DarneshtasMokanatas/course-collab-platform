@@ -11,6 +11,18 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
       <a class="brand" href="{% url 'home' %}">Course Collaboration Platform</a>
+      <nav aria-label="Account navigation">
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button class="link-button" type="submit">Log out</button>
+          </form>
+        {% else %}
+          <a href="{% url 'accounts:login' %}">Log in</a>
+          <a href="{% url 'accounts:register' %}">Register</a>
+        {% endif %}
+      </nav>
     </header>
     {% if messages %}
       <div class="messages" aria-live="polite">
