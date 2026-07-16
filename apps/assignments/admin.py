@@ -49,4 +49,22 @@ class SubmissionAdmin(admin.ModelAdmin):
 @admin.register(GradeRevision)
 class GradeRevisionAdmin(admin.ModelAdmin):
     list_display = ("submission", "revision_number", "score", "released_at")
-    readonly_fields = ("created_at",)
+    readonly_fields = (
+        "submission",
+        "submission_version",
+        "revision_number",
+        "score",
+        "feedback",
+        "graded_by",
+        "created_at",
+        "released_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -34,6 +34,24 @@ urlpatterns = [
     ),
     path(
         "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
+        "submissions/<uuid:submission_id>/grade/",
+        views.grade_submission,
+        name="grade",
+    ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
+        "submissions/<uuid:submission_id>/release-grade/",
+        views.release_grade,
+        name="release_grade",
+    ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
+        "submissions/<uuid:submission_id>/withdraw-grade/",
+        views.withdraw_grade_release,
+        name="withdraw_grade",
+    ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
         "submissions/<uuid:submission_id>/versions/<uuid:version_id>/download/",
         views.submission_version_download,
         name="submission_version_download",

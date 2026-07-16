@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Grade {{ submission.student.display_name }} | {{ assignment.title }}{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p>
+    <h1>Create grade revision</h1>
+    <p>Student: {{ submission.student.display_name }}. Maximum score: {{ assignment.max_score }}.</p>
+    <p>Saving creates a private draft revision. Release it separately after review.</p>
+    <form method="post">
+      {% csrf_token %}
+      {% include "includes/form_fields.html" %}
+      <div class="form-actions">
+        <button type="submit">Save draft grade</button>
+        <a href="{% url 'assignments:submission_detail' course.id assignment.id submission.id %}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -10,7 +10,7 @@ from apps.analytics.models import ActivityEvent
 from apps.audit.models import AuditEvent
 from apps.courses.models import Course, Enrolment
 
-from .models import Assignment, Submission, SubmissionVersion
+from .models import Assignment, GradeRevision, Submission, SubmissionVersion
 
 MIME_TYPES_BY_EXTENSION = {
     "csv": {"text/csv"},
@@ -281,3 +281,120 @@ def submit_resubmission(*, actor, assignment, upload):
             default_storage.delete(saved_key)
         raise
     return version
+
+
+def create_grade_revision(
+    *,
+    actor,
+    submission,
+    submission_version,
+    score,
+    feedback,
+):
+    with transaction.atomic():
+        submission = (
+            Submission.objects.select_for_update()
+            .select_related("assignment__course")
+            .get(pk=submission.pk)
+        )
+        _require_owner(actor, submission.assignment.course)
+        submission_version = SubmissionVersion.objects.filter(
+            pk=submission_version.pk,
+            submission=submission,
+        ).first()
+        if submission_version is None:
+            raise ValidationError(
+                {"submission_version": "Version must belong to this submission."}
+            )
+        latest_revision_number = (
+            submission.grade_revisions.order_by("-revision_number")
+            .values_list("revision_number", flat=True)
+            .first()
+            or 0
+        )
+        revision = GradeRevision(
+            submission=submission,
+            submission_version=submission_version,
+            revision_number=latest_revision_number + 1,
+            score=score,
+            feedback=feedback,
+            graded_by=actor,
+        )
+        revision.full_clean()
+        revision.save()
+        AuditEvent.objects.create(
+            actor=actor,
+            action="GRADE_REVISION_CREATED",
+            object_type="GradeRevision",
+            object_id=revision.id,
+            course=submission.assignment.course,
+            metadata={
+                "assignment_id": str(submission.assignment_id),
+                "submission_id": str(submission.id),
+                "submission_version_id": str(submission_version.id),
+                "revision_number": revision.revision_number,
+            },
+        )
+    return revision
+
+
+def release_latest_grade(*, actor, submission):
+    with transaction.atomic():
+        submission = (
+            Submission.objects.select_for_update()
+            .select_related("assignment__course")
+            .get(pk=submission.pk)
+        )
+        _require_owner(actor, submission.assignment.course)
+        revision = submission.grade_revisions.order_by("-revision_number").first()
+        if revision is None:
+            raise ValidationError("Create a grade revision before releasing it.")
+        if revision.released_at is not None:
+            return revision
+        revision.released_at = timezone.now()
+        revision.save(update_fields=["released_at"])
+        AuditEvent.objects.create(
+            actor=actor,
+            action="GRADE_RELEASED",
+            object_type="GradeRevision",
+            object_id=revision.id,
+            course=submission.assignment.course,
+            metadata={
+                "assignment_id": str(submission.assignment_id),
+                "submission_id": str(submission.id),
+                "revision_number": revision.revision_number,
+            },
+        )
+    return revision
+
+
+def withdraw_latest_grade_release(*, actor, submission):
+    with transaction.atomic():
+        submission = (
+            Submission.objects.select_for_update()
+            .select_related("assignment__course")
+            .get(pk=submission.pk)
+        )
+        _require_owner(actor, submission.assignment.course)
+        revision = (
+            submission.grade_revisions.filter(released_at__isnull=False)
+            .order_by("-revision_number")
+            .first()
+        )
+        if revision is None:
+            raise ValidationError("No released grade is available to withdraw.")
+        revision.released_at = None
+        revision.save(update_fields=["released_at"])
+        AuditEvent.objects.create(
+            actor=actor,
+            action="GRADE_RELEASE_WITHDRAWN",
+            object_type="GradeRevision",
+            object_id=revision.id,
+            course=submission.assignment.course,
+            metadata={
+                "assignment_id": str(submission.assignment_id),
+                "submission_id": str(submission.id),
+                "revision_number": revision.revision_number,
+            },
+        )
+    return revision

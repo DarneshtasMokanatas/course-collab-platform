@@ -7,17 +7,19 @@
     <p><a class="button-link" href="{% url 'assignments:detail' course.id assignment.id %}">Back to assignment</a></p>
   </section>
   <section>
-    {% if page.object_list %}
+    {% if rows %}
       <ol class="card-list">
-        {% for submission in page.object_list %}
+        {% for row in rows %}
           <li>
-            <h2><a href="{% url 'assignments:submission_detail' course.id assignment.id submission.id %}">{{ submission.student.display_name }}</a></h2>
-            <p>{{ submission.ordered_versions|length }} version{{ submission.ordered_versions|length|pluralize }} retained.</p>
-            {% with current=submission.ordered_versions|last %}
-              {% if current %}
-                <p>Current: version {{ current.version_number }}, received {{ current.submitted_at|date:"M j, Y, g:i A T" }}{% if current.was_late %} · Late{% else %} · On time{% endif %}</p>
-              {% endif %}
-            {% endwith %}
+            <p class="eyebrow">{{ row.status }}</p>
+            {% if row.submission %}
+              <h2><a href="{% url 'assignments:submission_detail' course.id assignment.id row.submission.id %}">{{ row.student.display_name }}</a></h2>
+              <p>{{ row.submission.ordered_versions|length }} version{{ row.submission.ordered_versions|length|pluralize }} retained.</p>
+              <p>Current: version {{ row.latest_version.version_number }}, received {{ row.latest_version.submitted_at|date:"M j, Y, g:i A T" }}{% if row.latest_version.was_late %} · Late{% else %} · On time{% endif %}</p>
+            {% else %}
+              <h2>{{ row.student.display_name }}</h2>
+              <p>No submission has been received.</p>
+            {% endif %}
           </li>
         {% endfor %}
       </ol>

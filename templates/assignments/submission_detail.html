@@ -5,7 +5,10 @@
     <p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p>
     <h1>{{ submission.student.display_name }}</h1>
     <p>First submitted {{ submission.created_at|date:"M j, Y, g:i A T" }}</p>
-    <p><a class="button-link" href="{% url 'assignments:submission_list' course.id assignment.id %}">Back to submissions</a></p>
+    <div class="form-actions">
+      <a class="button-link" href="{% url 'assignments:submission_list' course.id assignment.id %}">Back to submissions</a>
+      <a class="button-link" href="{% url 'assignments:grade' course.id assignment.id submission.id %}">Create grade revision</a>
+    </div>
   </section>
   <section>
     <h2>Version history</h2>
@@ -21,5 +24,38 @@
         <li class="empty-state">No submission versions are available.</li>
       {% endfor %}
     </ol>
+  </section>
+  <section>
+    <h2>Grade revisions</h2>
+    {% if submission.ordered_grade_revisions %}
+      <ol class="card-list">
+        {% for revision in submission.ordered_grade_revisions reversed %}
+          <li>
+            <p class="eyebrow">Revision {{ revision.revision_number }} · {% if revision.released_at %}Released{% else %}Draft{% endif %}</p>
+            <h3>{{ revision.score }} / {{ assignment.max_score }}</h3>
+            <p>Based on submission version {{ revision.submission_version.version_number }}.</p>
+            {% if revision.feedback %}<p>{{ revision.feedback|linebreaksbr }}</p>{% endif %}
+            <p>Recorded {{ revision.created_at|date:"M j, Y, g:i A T" }} by {{ revision.graded_by.display_name }}.</p>
+            {% if revision.released_at %}<p>Released {{ revision.released_at|date:"M j, Y, g:i A T" }}.</p>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+      <div class="form-actions">
+        {% if not latest_revision.released_at %}
+          <form method="post" action="{% url 'assignments:release_grade' course.id assignment.id submission.id %}" onsubmit="return confirm('Release the latest grade revision to this student?');">
+            {% csrf_token %}
+            <button type="submit">Release latest grade</button>
+          </form>
+        {% endif %}
+        {% if has_released_grade %}
+          <form method="post" action="{% url 'assignments:withdraw_grade' course.id assignment.id submission.id %}" onsubmit="return confirm('Withdraw the latest released grade?');">
+            {% csrf_token %}
+            <button type="submit">Withdraw latest release</button>
+          </form>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="empty-state">No grade revision has been recorded.</p>
+    {% endif %}
   </section>
 {% endblock %}

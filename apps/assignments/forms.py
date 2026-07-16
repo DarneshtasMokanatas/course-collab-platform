@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Assignment
+from .models import Assignment, SubmissionVersion
 
 
 class AssignmentForm(forms.ModelForm):
@@ -28,3 +28,25 @@ class AssignmentForm(forms.ModelForm):
 
 class SubmissionForm(forms.Form):
     file = forms.FileField()
+
+
+class GradeRevisionForm(forms.Form):
+    submission_version = forms.ModelChoiceField(
+        queryset=SubmissionVersion.objects.none(),
+        label="Submission version",
+    )
+    score = forms.DecimalField(
+        min_value=0,
+        max_digits=8,
+        decimal_places=2,
+    )
+    feedback = forms.CharField(
+        required=False,
+        widget=forms.Textarea,
+    )
+
+    def __init__(self, *args, submission, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["submission_version"].queryset = submission.versions.order_by(
+            "version_number"
+        )

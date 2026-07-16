@@ -13,13 +13,16 @@ from django.utils import timezone
 from apps.analytics.models import ActivityEvent
 from apps.courses.models import Course, Enrolment
 
-from .forms import AssignmentForm, SubmissionForm
-from .models import Assignment, Submission, SubmissionVersion
+from .forms import AssignmentForm, GradeRevisionForm, SubmissionForm
+from .models import Assignment, GradeRevision, Submission, SubmissionVersion
 from .services import (
     create_assignment,
+    create_grade_revision,
     publish_assignment,
+    release_latest_grade,
     submit_first_version,
     submit_resubmission,
+    withdraw_latest_grade_release,
 )
 
 
@@ -134,6 +137,7 @@ def assignment_detail(request, course_id, assignment_id):
     student_submission = None
     submission_count = None
     can_resubmit = False
+    latest_released_grade = None
     if owner:
         submission_count = assignment.submissions.count()
     else:
@@ -148,6 +152,13 @@ def assignment_detail(request, course_id, assignment_id):
             and assignment.allow_resubmission
             and timezone.now() < assignment.due_at
         )
+        if student_submission:
+            latest_released_grade = (
+                student_submission.grade_revisions.filter(released_at__isnull=False)
+                .select_related("submission_version")
+                .order_by("-revision_number")
+                .first()
+            )
         recent_view = ActivityEvent.objects.filter(
             course=assignment.course,
             user=request.user,
@@ -173,6 +184,7 @@ def assignment_detail(request, course_id, assignment_id):
             "student_submission": student_submission,
             "submission_count": submission_count,
             "can_resubmit": can_resubmit,
+            "latest_released_grade": latest_released_grade,
         },
     )
 
@@ -246,23 +258,70 @@ def assignment_submit(request, course_id, assignment_id):
 def assignment_submissions(request, course_id, assignment_id):
     course = _owner_course(request.user, course_id)
     assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
-    submissions = (
-        Submission.objects.filter(assignment=assignment)
+    submissions = Submission.objects.filter(assignment=assignment).prefetch_related(
+        Prefetch(
+            "versions",
+            queryset=SubmissionVersion.objects.order_by("version_number"),
+            to_attr="ordered_versions",
+        ),
+        Prefetch(
+            "grade_revisions",
+            queryset=GradeRevision.objects.order_by("revision_number"),
+            to_attr="ordered_grade_revisions",
+        ),
+    )
+    enrolments = (
+        Enrolment.objects.filter(
+            course=course,
+            status=Enrolment.Status.ACTIVE,
+        )
         .select_related("student")
         .prefetch_related(
             Prefetch(
-                "versions",
-                queryset=SubmissionVersion.objects.order_by("version_number"),
-                to_attr="ordered_versions",
+                "student__submissions",
+                queryset=submissions,
+                to_attr="assignment_submissions",
             )
         )
         .order_by("student__display_name", "student__username")
     )
-    page = Paginator(submissions, 25).get_page(request.GET.get("page"))
+    page = Paginator(enrolments, 25).get_page(request.GET.get("page"))
+    rows = []
+    for enrolment in page.object_list:
+        student_submissions = enrolment.student.assignment_submissions
+        submission = student_submissions[0] if student_submissions else None
+        latest_version = None
+        status = "MISSING"
+        if submission:
+            latest_version = submission.ordered_versions[-1]
+            released_revisions = [
+                revision
+                for revision in submission.ordered_grade_revisions
+                if revision.released_at is not None
+            ]
+            if released_revisions:
+                status = "GRADED"
+            elif latest_version.was_late:
+                status = "LATE"
+            else:
+                status = "SUBMITTED"
+        rows.append(
+            {
+                "student": enrolment.student,
+                "submission": submission,
+                "latest_version": latest_version,
+                "status": status,
+            }
+        )
     return render(
         request,
         "assignments/submission_list.html",
-        {"course": course, "assignment": assignment, "page": page},
+        {
+            "course": course,
+            "assignment": assignment,
+            "page": page,
+            "rows": rows,
+        },
     )
 
 
@@ -276,10 +335,26 @@ def submission_detail(request, course_id, assignment_id, submission_id):
                 "versions",
                 queryset=SubmissionVersion.objects.order_by("version_number"),
                 to_attr="ordered_versions",
-            )
+            ),
+            Prefetch(
+                "grade_revisions",
+                queryset=GradeRevision.objects.select_related(
+                    "submission_version", "graded_by"
+                ).order_by("revision_number"),
+                to_attr="ordered_grade_revisions",
+            ),
         ),
         pk=submission_id,
         assignment=assignment,
+    )
+    latest_revision = (
+        submission.ordered_grade_revisions[-1]
+        if submission.ordered_grade_revisions
+        else None
+    )
+    has_released_grade = any(
+        revision.released_at is not None
+        for revision in submission.ordered_grade_revisions
     )
     return render(
         request,
@@ -288,7 +363,135 @@ def submission_detail(request, course_id, assignment_id, submission_id):
             "course": course,
             "assignment": assignment,
             "submission": submission,
+            "latest_revision": latest_revision,
+            "has_released_grade": has_released_grade,
         },
+    )
+
+
+@login_required
+def grade_submission(request, course_id, assignment_id, submission_id):
+    course = _owner_course(request.user, course_id)
+    assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
+    submission = get_object_or_404(
+        Submission.objects.select_related("student").prefetch_related("versions"),
+        pk=submission_id,
+        assignment=assignment,
+    )
+    initial = {}
+    latest_revision = submission.grade_revisions.order_by("-revision_number").first()
+    if latest_revision:
+        initial = {
+            "submission_version": latest_revision.submission_version_id,
+            "score": latest_revision.score,
+            "feedback": latest_revision.feedback,
+        }
+    elif submission.versions.exists():
+        initial["submission_version"] = submission.versions.order_by(
+            "-version_number"
+        ).first()
+    form = GradeRevisionForm(
+        request.POST or None,
+        submission=submission,
+        initial=initial,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            revision = create_grade_revision(
+                actor=request.user,
+                submission=submission,
+                submission_version=form.cleaned_data["submission_version"],
+                score=form.cleaned_data["score"],
+                feedback=form.cleaned_data["feedback"],
+            )
+        except (PermissionDenied, ValidationError) as error:
+            if isinstance(error, ValidationError) and hasattr(error, "message_dict"):
+                for field, field_errors in error.message_dict.items():
+                    form.add_error(
+                        field if field in form.fields else None,
+                        field_errors,
+                    )
+            else:
+                form.add_error(None, error)
+        else:
+            messages.success(
+                request,
+                f"Grade revision {revision.revision_number} saved as a draft.",
+            )
+            return redirect(
+                "assignments:submission_detail",
+                course_id=course.id,
+                assignment_id=assignment.id,
+                submission_id=submission.id,
+            )
+    return render(
+        request,
+        "assignments/grade.html",
+        {
+            "course": course,
+            "assignment": assignment,
+            "submission": submission,
+            "form": form,
+        },
+    )
+
+
+@login_required
+def release_grade(request, course_id, assignment_id, submission_id):
+    if request.method != "POST":
+        raise Http404
+    course = _owner_course(request.user, course_id)
+    assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
+    submission = get_object_or_404(
+        Submission,
+        pk=submission_id,
+        assignment=assignment,
+    )
+    try:
+        revision = release_latest_grade(actor=request.user, submission=submission)
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+    else:
+        messages.success(
+            request,
+            f"Grade revision {revision.revision_number} released to the student.",
+        )
+    return redirect(
+        "assignments:submission_detail",
+        course_id=course.id,
+        assignment_id=assignment.id,
+        submission_id=submission.id,
+    )
+
+
+@login_required
+def withdraw_grade_release(request, course_id, assignment_id, submission_id):
+    if request.method != "POST":
+        raise Http404
+    course = _owner_course(request.user, course_id)
+    assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
+    submission = get_object_or_404(
+        Submission,
+        pk=submission_id,
+        assignment=assignment,
+    )
+    try:
+        revision = withdraw_latest_grade_release(
+            actor=request.user,
+            submission=submission,
+        )
+    except ValidationError as error:
+        messages.error(request, "; ".join(error.messages))
+    else:
+        messages.success(
+            request,
+            f"Release of grade revision {revision.revision_number} withdrawn.",
+        )
+    return redirect(
+        "assignments:submission_detail",
+        course_id=course.id,
+        assignment_id=assignment.id,
+        submission_id=submission.id,
     )
 
 

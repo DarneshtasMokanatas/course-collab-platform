@@ -42,6 +42,14 @@
           </li>
         {% endfor %}
       </ol>
+      <h3>Released grade</h3>
+      {% if latest_released_grade %}
+        <p>{{ latest_released_grade.score }} / {{ assignment.max_score }}, based on submission version {{ latest_released_grade.submission_version.version_number }}.</p>
+        {% if latest_released_grade.feedback %}<p>{{ latest_released_grade.feedback|linebreaksbr }}</p>{% endif %}
+        <p>Released {{ latest_released_grade.released_at|date:"M j, Y, g:i A T" }}.</p>
+      {% else %}
+        <p class="empty-state">No grade has been released.</p>
+      {% endif %}
     {% else %}
       <p class="empty-state">No submission has been received yet.</p>
     {% endif %}
