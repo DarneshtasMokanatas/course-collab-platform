@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from apps.audit.models import AuditEvent
@@ -30,6 +30,14 @@ class CourseMutationPermissionTests(TestCase):
             email="learner@example.test",
             display_name="Learner",
             role=user_model.Role.STUDENT,
+            password="SafeTestPassword!2026",
+        )
+        cls.staff = user_model.objects.create_user(
+            username="course-staff",
+            email="course-staff@example.test",
+            display_name="Course Staff",
+            role=user_model.Role.INSTRUCTOR,
+            is_staff=True,
             password="SafeTestPassword!2026",
         )
         cls.course = Course.objects.create(
@@ -75,4 +83,19 @@ class CourseMutationPermissionTests(TestCase):
             AuditEvent.objects.filter(
                 course=self.course, action="COURSE_PUBLISHED"
             ).exists()
+        )
+
+    def test_staff_can_access_course_management_and_csrf_is_enforced(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(
+            self.client.get(reverse("courses:edit", args=[self.course.id])).status_code,
+            200,
+        )
+        csrf_client = Client(enforce_csrf_checks=True)
+        csrf_client.force_login(self.owner)
+        self.assertEqual(
+            csrf_client.post(
+                reverse("courses:publish", args=[self.course.id])
+            ).status_code,
+            403,
         )

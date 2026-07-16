@@ -24,6 +24,8 @@ from .services import (
     withdraw_latest_grade_release,
 )
 
+PDF_HEADER = b"%PDF-1.4\n"
+
 
 class GradingWorkflowTests(TestCase):
     def setUp(self):
@@ -102,6 +104,8 @@ class GradingWorkflowTests(TestCase):
         self.media_root.cleanup()
 
     def upload(self, name="work.pdf", content=b"work"):
+        if name.lower().endswith(".pdf") and not content.startswith(PDF_HEADER):
+            content = PDF_HEADER + content
         return SimpleUploadedFile(name, content, content_type="application/pdf")
 
     def test_grade_revisions_are_append_only_version_specific_and_audited(self):

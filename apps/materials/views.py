@@ -16,7 +16,9 @@ from .services import add_material_version, can_download, create_material
 
 def _owner_course(user, course_id):
     course = get_object_or_404(Course, pk=course_id)
-    if user.role != user.Role.INSTRUCTOR or course.instructor_id != user.id:
+    if not user.is_staff and (
+        user.role != user.Role.INSTRUCTOR or course.instructor_id != user.id
+    ):
         raise Http404
     return course
 
@@ -24,7 +26,7 @@ def _owner_course(user, course_id):
 @login_required
 def material_list(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
-    owner = (
+    owner = request.user.is_staff or (
         request.user.role == request.user.Role.INSTRUCTOR
         and course.instructor_id == request.user.id
     )
@@ -98,8 +100,10 @@ def material_download(request, course_id, material_id, version_id):
         request.user, material
     ):
         raise Http404
-    if not default_storage.exists(version.storage_key):
-        raise Http404
+    try:
+        stored_file = default_storage.open(version.storage_key, "rb")
+    except (FileNotFoundError, OSError):
+        raise Http404 from None
     record_activity(
         course=material.course,
         user=request.user,
@@ -114,9 +118,11 @@ def material_download(request, course_id, material_id, version_id):
         object_type="MaterialVersion",
         object_id=version.id,
     )
-    return FileResponse(
-        default_storage.open(version.storage_key, "rb"),
+    response = FileResponse(
+        stored_file,
         as_attachment=True,
         filename=version.original_filename,
         content_type="application/octet-stream",
     )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

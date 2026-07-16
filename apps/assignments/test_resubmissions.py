@@ -20,6 +20,8 @@ from apps.courses.models import Course, Enrolment
 from .models import Assignment, SubmissionVersion
 from .services import submit_first_version, submit_resubmission
 
+PDF_HEADER = b"%PDF-1.4\n"
+
 
 class ResubmissionWorkflowTests(TestCase):
     def setUp(self):
@@ -98,6 +100,8 @@ class ResubmissionWorkflowTests(TestCase):
         return Assignment.objects.create(**data)
 
     def upload(self, name="work.pdf", content=b"submission"):
+        if name.lower().endswith(".pdf") and not content.startswith(PDF_HEADER):
+            content = PDF_HEADER + content
         return SimpleUploadedFile(name, content, content_type="application/pdf")
 
     def test_resubmission_creates_immutable_version_metadata_and_events(self):
@@ -118,10 +122,16 @@ class ResubmissionWorkflowTests(TestCase):
         first.refresh_from_db()
         self.assertEqual(first.version_number, 1)
         self.assertEqual(first.original_filename, "work.pdf")
-        self.assertEqual(first.sha256, hashlib.sha256(b"first").hexdigest())
+        self.assertEqual(
+            first.sha256,
+            hashlib.sha256(PDF_HEADER + b"first").hexdigest(),
+        )
         self.assertEqual(second.version_number, 2)
         self.assertEqual(second.original_filename, "revised.pdf")
-        self.assertEqual(second.sha256, hashlib.sha256(b"second").hexdigest())
+        self.assertEqual(
+            second.sha256,
+            hashlib.sha256(PDF_HEADER + b"second").hexdigest(),
+        )
         self.assertEqual(second.submitted_at, accepted_at)
         self.assertFalse(second.was_late)
         self.assertEqual(
@@ -231,7 +241,7 @@ class ResubmissionWorkflowTests(TestCase):
             b"text",
             content_type="text/plain",
         )
-        with self.assertRaisesMessage(ValidationError, "content type"):
+        with self.assertRaisesMessage(ValidationError, "content"):
             submit_resubmission(
                 actor=self.student,
                 assignment=assignment,
@@ -259,7 +269,10 @@ class ResubmissionWorkflowTests(TestCase):
         self.assertContains(response, "Version 2 (Current)")
         self.assertContains(response, "Submit a new version")
         first.refresh_from_db()
-        self.assertEqual(first.sha256, hashlib.sha256(b"first").hexdigest())
+        self.assertEqual(
+            first.sha256,
+            hashlib.sha256(PDF_HEADER + b"first").hexdigest(),
+        )
 
     def test_direct_resubmission_page_redirects_when_policy_or_deadline_blocks_it(self):
         disabled = self.assignment(allow_resubmission=False)
@@ -368,7 +381,10 @@ class ResubmissionWorkflowTests(TestCase):
             self.client.force_login(user)
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(b"".join(response.streaming_content), b"download me")
+            self.assertEqual(
+                b"".join(response.streaming_content),
+                PDF_HEADER + b"download me",
+            )
             self.assertIn("attachment", response["Content-Disposition"])
             self.assertEqual(response["Content-Type"], "application/octet-stream")
         for user in (self.other_student, self.other_instructor):
@@ -457,7 +473,9 @@ class ConcurrentResubmissionTests(TransactionTestCase):
             actor=self.student,
             assignment=self.assignment,
             upload=SimpleUploadedFile(
-                "first.pdf", b"first", content_type="application/pdf"
+                "first.pdf",
+                PDF_HEADER + b"first",
+                content_type="application/pdf",
             ),
         )
 
@@ -484,7 +502,7 @@ class ConcurrentResubmissionTests(TransactionTestCase):
                     assignment=self.assignment,
                     upload=SimpleUploadedFile(
                         f"{content.decode()}.pdf",
-                        content,
+                        PDF_HEADER + content,
                         content_type="application/pdf",
                     ),
                 ).version_number

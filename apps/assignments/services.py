@@ -1,6 +1,3 @@
-import hashlib
-from pathlib import Path
-
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -10,26 +7,9 @@ from apps.analytics.models import ActivityEvent
 from apps.analytics.services import record_activity
 from apps.audit.models import AuditEvent
 from apps.courses.models import Course, Enrolment
+from apps.upload_validation import validated_upload_metadata
 
 from .models import Assignment, GradeRevision, Submission, SubmissionVersion
-
-MIME_TYPES_BY_EXTENSION = {
-    "csv": {"text/csv"},
-    "doc": {"application/msword"},
-    "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-    "jpeg": {"image/jpeg"},
-    "jpg": {"image/jpeg"},
-    "pdf": {"application/pdf"},
-    "png": {"image/png"},
-    "ppt": {"application/vnd.ms-powerpoint"},
-    "pptx": {
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    },
-    "txt": {"text/plain"},
-    "xls": {"application/vnd.ms-excel"},
-    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
-    "zip": {"application/zip", "application/x-zip-compressed"},
-}
 
 
 def _require_owner(actor, course):
@@ -98,28 +78,18 @@ def publish_assignment(*, actor, assignment):
 
 
 def _file_metadata(assignment, upload):
-    filename = Path(upload.name).name
-    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if extension not in assignment.allowed_extensions:
-        raise ValidationError("This file type is not allowed for the assignment.")
-    if upload.size <= 0 or upload.size > assignment.max_upload_bytes:
-        raise ValidationError("This file does not meet the assignment size limit.")
-    allowed_content_types = MIME_TYPES_BY_EXTENSION.get(extension)
-    content_type = (upload.content_type or "").partition(";")[0].strip().lower()
-    if not allowed_content_types or content_type not in allowed_content_types:
-        raise ValidationError(
-            "The uploaded file content type does not match its extension."
+    try:
+        return validated_upload_metadata(
+            upload=upload,
+            allowed_extensions=set(assignment.allowed_extensions),
+            max_upload_bytes=assignment.max_upload_bytes,
         )
-    digest = hashlib.sha256()
-    for chunk in upload.chunks():
-        digest.update(chunk)
-    upload.seek(0)
-    return (
-        filename,
-        content_type,
-        upload.size,
-        digest.hexdigest(),
-    )
+    except ValidationError as error:
+        if "file type is not allowed" in str(error):
+            raise ValidationError(
+                "This file type is not allowed for the assignment."
+            ) from error
+        raise
 
 
 def submit_first_version(*, actor, assignment, upload):

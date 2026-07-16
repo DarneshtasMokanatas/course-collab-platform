@@ -21,11 +21,11 @@ class SectionData:
 
 
 def _can_manage(actor, course):
-    return course.instructor_id == actor.id
+    return actor.is_staff or course.instructor_id == actor.id
 
 
 def _require_instructor(actor):
-    if actor.role != actor.Role.INSTRUCTOR:
+    if not actor.is_staff and actor.role != actor.Role.INSTRUCTOR:
         raise PermissionDenied("Instructor access is required.")
 
 

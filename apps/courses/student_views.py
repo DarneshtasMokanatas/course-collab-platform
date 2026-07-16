@@ -35,7 +35,7 @@ def course_detail_portal(request, course_id):
     course = get_object_or_404(
         Course.objects.prefetch_related("sections"), pk=course_id
     )
-    can_manage = course.instructor_id == request.user.id
+    can_manage = request.user.is_staff or course.instructor_id == request.user.id
     enrolled = (
         request.user.role == request.user.Role.STUDENT
         and Enrolment.objects.filter(

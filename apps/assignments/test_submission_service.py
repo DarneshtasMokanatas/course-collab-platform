@@ -17,6 +17,8 @@ from apps.courses.models import Course, CourseSection, Enrolment
 from .models import Assignment, Submission, SubmissionVersion
 from .services import create_assignment, publish_assignment, submit_first_version
 
+PDF_HEADER = b"%PDF-1.4\n"
+
 
 class AssignmentWorkflowTests(TestCase):
     def setUp(self):
@@ -111,6 +113,8 @@ class AssignmentWorkflowTests(TestCase):
     def upload(
         self, name="essay.pdf", content=b"essay bytes", content_type="application/pdf"
     ):
+        if name.lower().endswith(".pdf") and not content.startswith(PDF_HEADER):
+            content = PDF_HEADER + content
         return SimpleUploadedFile(name, content, content_type=content_type)
 
     def test_instructor_creates_draft_and_publishes_with_audit_events(self):
@@ -248,7 +252,10 @@ class AssignmentWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         version = SubmissionVersion.objects.get(submission__assignment=assignment)
         self.assertEqual(version.version_number, 1)
-        self.assertEqual(version.sha256, hashlib.sha256(b"essay bytes").hexdigest())
+        self.assertEqual(
+            version.sha256,
+            hashlib.sha256(PDF_HEADER + b"essay bytes").hexdigest(),
+        )
         self.assertTrue(
             ActivityEvent.objects.filter(
                 event_type=ActivityEvent.EventType.SUBMISSION_CREATED,
@@ -266,8 +273,11 @@ class AssignmentWorkflowTests(TestCase):
         self.assertEqual(version.version_number, 1)
         self.assertEqual(version.original_filename, "essay.pdf")
         self.assertEqual(version.content_type, "application/pdf")
-        self.assertEqual(version.size_bytes, len(b"essay bytes"))
-        self.assertEqual(version.sha256, hashlib.sha256(b"essay bytes").hexdigest())
+        self.assertEqual(version.size_bytes, len(PDF_HEADER + b"essay bytes"))
+        self.assertEqual(
+            version.sha256,
+            hashlib.sha256(PDF_HEADER + b"essay bytes").hexdigest(),
+        )
         self.assertTrue(
             version.storage_key.startswith(
                 f"courses/{self.course.id}/assignments/{assignment.id}/submissions/"
@@ -284,6 +294,25 @@ class AssignmentWorkflowTests(TestCase):
                 upload=self.upload("run.exe"),
             )
         self.assertEqual(Submission.objects.filter(assignment=assignment).count(), 1)
+
+    def test_upload_rejects_spoofed_content_and_sanitizes_display_filename(self):
+        assignment = self.create_published_assignment(max_upload_bytes=1024)
+        with self.assertRaisesMessage(ValidationError, "content does not match"):
+            submit_first_version(
+                actor=self.student,
+                assignment=assignment,
+                upload=SimpleUploadedFile(
+                    "spoofed.pdf",
+                    b"not a pdf",
+                    content_type="application/pdf",
+                ),
+            )
+        version = submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("C:\\private\\final report.pdf"),
+        )
+        self.assertEqual(version.original_filename, "final_report.pdf")
 
     def test_submit_requires_enrolment_and_published_assignment(
         self,

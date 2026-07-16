@@ -1,6 +1,3 @@
-import hashlib
-from pathlib import Path
-
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -8,6 +5,7 @@ from django.utils import timezone
 
 from apps.audit.models import AuditEvent
 from apps.courses.models import Enrolment
+from apps.upload_validation import validated_upload_metadata
 
 from .models import Material, MaterialVersion
 
@@ -16,26 +14,17 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 
 def _require_owner(actor, course):
-    if actor.role != actor.Role.INSTRUCTOR or course.instructor_id != actor.id:
+    if not actor.is_staff and (
+        actor.role != actor.Role.INSTRUCTOR or course.instructor_id != actor.id
+    ):
         raise PermissionDenied
 
 
 def _file_metadata(upload):
-    filename = Path(upload.name).name
-    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    if extension not in ALLOWED_EXTENSIONS:
-        raise ValidationError("This file type is not allowed.")
-    if upload.size <= 0 or upload.size > MAX_UPLOAD_BYTES:
-        raise ValidationError("The upload must be between 1 byte and 10 MB.")
-    digest = hashlib.sha256()
-    for chunk in upload.chunks():
-        digest.update(chunk)
-    upload.seek(0)
-    return (
-        filename,
-        upload.content_type or "application/octet-stream",
-        upload.size,
-        digest.hexdigest(),
+    return validated_upload_metadata(
+        upload=upload,
+        allowed_extensions=ALLOWED_EXTENSIONS,
+        max_upload_bytes=MAX_UPLOAD_BYTES,
     )
 
 
@@ -44,27 +33,28 @@ def create_material(*, actor, course, data, upload):
     if data.get("section") and data["section"].course_id != course.id:
         raise ValidationError("Section must belong to this course.")
     filename, content_type, size, sha256 = _file_metadata(upload)
-    with transaction.atomic():
-        material = Material(course=course, created_by=actor, **data)
-        if material.status == Material.Status.PUBLISHED:
-            material.published_at = timezone.now()
-        material.full_clean()
-        material.save()
-        version = MaterialVersion(
-            material=material,
-            version_number=1,
-            original_filename=filename,
-            content_type=content_type,
-            size_bytes=size,
-            sha256=sha256,
-            uploaded_by=actor,
-        )
-        version.storage_key = (
-            f"courses/{course.id}/materials/{material.id}/{version.id}"
-        )
-        saved_key = default_storage.save(version.storage_key, upload)
-        version.storage_key = saved_key
-        try:
+    saved_key = None
+    try:
+        with transaction.atomic():
+            material = Material(course=course, created_by=actor, **data)
+            if material.status == Material.Status.PUBLISHED:
+                material.published_at = timezone.now()
+            material.full_clean()
+            material.save()
+            version = MaterialVersion(
+                material=material,
+                version_number=1,
+                original_filename=filename,
+                content_type=content_type,
+                size_bytes=size,
+                sha256=sha256,
+                uploaded_by=actor,
+            )
+            version.storage_key = (
+                f"courses/{course.id}/materials/{material.id}/{version.id}"
+            )
+            saved_key = default_storage.save(version.storage_key, upload)
+            version.storage_key = saved_key
             version.full_clean()
             version.save()
             AuditEvent.objects.create(
@@ -76,37 +66,39 @@ def create_material(*, actor, course, data, upload):
                 object_id=material.id,
                 course=course,
             )
-        except Exception:
+    except Exception:
+        if saved_key:
             default_storage.delete(saved_key)
-            raise
+        raise
     return material
 
 
 def add_material_version(*, actor, material, upload):
     _require_owner(actor, material.course)
     filename, content_type, size, sha256 = _file_metadata(upload)
-    with transaction.atomic():
-        material = (
-            Material.objects.select_for_update()
-            .select_related("course")
-            .get(pk=material.pk)
-        )
-        _require_owner(actor, material.course)
-        version = MaterialVersion(
-            material=material,
-            version_number=material.versions.count() + 1,
-            original_filename=filename,
-            content_type=content_type,
-            size_bytes=size,
-            sha256=sha256,
-            uploaded_by=actor,
-        )
-        version.storage_key = (
-            f"courses/{material.course_id}/materials/{material.id}/{version.id}"
-        )
-        saved_key = default_storage.save(version.storage_key, upload)
-        version.storage_key = saved_key
-        try:
+    saved_key = None
+    try:
+        with transaction.atomic():
+            material = (
+                Material.objects.select_for_update()
+                .select_related("course")
+                .get(pk=material.pk)
+            )
+            _require_owner(actor, material.course)
+            version = MaterialVersion(
+                material=material,
+                version_number=material.versions.count() + 1,
+                original_filename=filename,
+                content_type=content_type,
+                size_bytes=size,
+                sha256=sha256,
+                uploaded_by=actor,
+            )
+            version.storage_key = (
+                f"courses/{material.course_id}/materials/{material.id}/{version.id}"
+            )
+            saved_key = default_storage.save(version.storage_key, upload)
+            version.storage_key = saved_key
             version.full_clean()
             version.save()
             AuditEvent.objects.create(
@@ -120,13 +112,16 @@ def add_material_version(*, actor, material, upload):
                     "version_number": version.version_number,
                 },
             )
-        except Exception:
+    except Exception:
+        if saved_key:
             default_storage.delete(saved_key)
-            raise
+        raise
     return version
 
 
 def can_download(user, material):
+    if user.is_staff:
+        return True
     if user.role == user.Role.INSTRUCTOR and material.course.instructor_id == user.id:
         return True
     return (

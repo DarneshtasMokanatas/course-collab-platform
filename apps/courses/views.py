@@ -18,13 +18,13 @@ def _owned_course_or_404(user, course_id):
     course = get_object_or_404(
         Course.objects.prefetch_related("sections"), pk=course_id
     )
-    if course.instructor_id != user.id:
+    if not user.is_staff and course.instructor_id != user.id:
         raise Http404
     return course
 
 
 def _instructor_required(user):
-    if user.role != user.Role.INSTRUCTOR:
+    if not user.is_staff and user.role != user.Role.INSTRUCTOR:
         raise PermissionDenied
 
 
