@@ -1,11 +1,11 @@
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase
 
 from apps.materials.models import Material
 
 from .models import Course, CourseSection
-from .services import SectionData, update_course_and_sections
+from .services import SectionData, create_course, update_course_and_sections
 
 
 class CourseSectionServiceTests(TestCase):
@@ -17,6 +17,14 @@ class CourseSectionServiceTests(TestCase):
             email="service.teacher@example.test",
             display_name="Service Teacher",
             role=user_model.Role.INSTRUCTOR,
+            password="SafeTestPassword!2026",
+        )
+        cls.student_staff = user_model.objects.create_user(
+            username="service.student.staff",
+            email="service.student.staff@example.test",
+            display_name="Student Staff",
+            role=user_model.Role.STUDENT,
+            is_staff=True,
             password="SafeTestPassword!2026",
         )
 
@@ -56,6 +64,19 @@ class CourseSectionServiceTests(TestCase):
             list(course.sections.order_by("position").values_list("title", flat=True)),
             ["Second", "First"],
         )
+
+    def test_student_role_staff_cannot_become_a_course_owner(self):
+        with self.assertRaisesMessage(PermissionDenied, "must be instructors"):
+            create_course(
+                actor=self.student_staff,
+                data={
+                    "code": "STAFFSTU",
+                    "title": "Invalid owner",
+                    "description": "Invalid owner",
+                    "syllabus": "",
+                    "enrolment_mode": Course.EnrolmentMode.CLOSED,
+                },
+            )
 
     def test_referenced_section_cannot_be_removed_and_update_rolls_back(self):
         course = Course.objects.create(

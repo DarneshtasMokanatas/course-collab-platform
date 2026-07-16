@@ -108,8 +108,11 @@ def material_download(request, course_id, material_id, version_id):
         Material.objects.select_related("course"), pk=material_id, course_id=course_id
     )
     version = get_object_or_404(MaterialVersion, pk=version_id, material=material)
-    if material.status != Material.Status.PUBLISHED or not can_download(
-        request.user, material
+    if not can_download(request.user, material):
+        raise Http404
+    if (
+        request.user.role == request.user.Role.STUDENT
+        and material.status != Material.Status.PUBLISHED
     ):
         raise Http404
     try:

@@ -227,6 +227,28 @@ class MaterialWorkflowTests(TestCase):
         self.assertEqual(response["Content-Type"], "application/octet-stream")
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
+        material.status = Material.Status.DRAFT
+        material.save(update_fields=["status"])
+        self.assertEqual(
+            self.client.get(
+                reverse(
+                    "materials:download",
+                    args=[self.course.id, material.id, version.id],
+                )
+            ).status_code,
+            200,
+        )
+        self.client.force_login(self.student)
+        self.assertEqual(
+            self.client.get(
+                reverse(
+                    "materials:download",
+                    args=[self.course.id, material.id, version.id],
+                )
+            ).status_code,
+            404,
+        )
+
     def test_missing_storage_file_returns_404(self):
         material = create_material(
             actor=self.instructor,

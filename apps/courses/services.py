@@ -29,6 +29,11 @@ def _require_instructor(actor):
         raise PermissionDenied("Instructor access is required.")
 
 
+def _require_course_creator(actor):
+    if actor.role != actor.Role.INSTRUCTOR:
+        raise PermissionDenied("Course owners must be instructors.")
+
+
 def _slug_for(code):
     return slugify(code) or "course"
 
@@ -44,7 +49,7 @@ def _unique_slug(code):
 
 
 def create_course(*, actor, data):
-    _require_instructor(actor)
+    _require_course_creator(actor)
     with transaction.atomic():
         course = Course(
             code=data["code"],
