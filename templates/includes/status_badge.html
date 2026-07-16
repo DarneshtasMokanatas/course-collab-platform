@@ -1,0 +1,19 @@
+{% with value=status|stringformat:"s" %}
+  <span class="status-badge status-{{ value|lower }}" data-status="{{ value }}">
+    <span class="status-icon" aria-hidden="true">
+      {% if value == "PUBLISHED" or value == "OPEN" or value == "RELEASED" or value == "GRADED" or value == "ACTIVE" %}✓
+      {% elif value == "DRAFT" %}✎
+      {% elif value == "ARCHIVED" or value == "CLOSED" or value == "WITHDRAWN" %}—
+      {% elif value == "LATE" or value == "INACTIVE" %}!
+      {% elif value == "UNREAD" or value == "PINNED" %}•
+      {% elif value == "CURRENT" or value == "SUBMITTED" or value == "ON_TIME" or value == "READ" %}●
+      {% else %}○{% endif %}
+    </span>
+    <span>
+      {% if label %}{{ label }}
+      {% elif value == "NOT_SUBMITTED" %}Not submitted
+      {% elif value == "ON_TIME" %}On time
+      {% else %}{{ value|title }}{% endif %}
+    </span>
+  </span>
+{% endwith %}

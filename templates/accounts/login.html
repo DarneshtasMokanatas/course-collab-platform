@@ -1,18 +1,33 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Log in | Course Collaboration Platform{% endblock %}
 {% block content %}
-  <section class="form-card">
-    <p class="eyebrow">Welcome back</p>
-    <h1>Log in</h1>
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% include "includes/form_fields.html" %}
-      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-      <div class="form-actions">
-        <button type="submit">Log in</button>
-        <a href="{% url 'home' %}">Cancel</a>
+  <section class="auth-layout" aria-labelledby="login-heading">
+    <div class="auth-form-panel">
+      <div class="form-card">
+        <header>
+          <p class="eyebrow">Welcome back</p>
+          <h1 id="login-heading">Log in to your workspace</h1>
+          <p class="lede">Use your username or email to continue to courses, coursework, and feedback.</p>
+        </header>
+        <form method="post" novalidate data-loading>
+          {% csrf_token %}
+          {% include "includes/form_fields.html" %}
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+          <div class="form-actions">
+            <button type="submit" data-loading-text="Logging in…">Log in</button>
+            <a class="button button-secondary" href="{% url 'home' %}">Cancel</a>
+          </div>
+        </form>
+        <p class="auth-switch">Need an account? <a href="{% url 'accounts:register' %}">Register as a student or instructor</a>.</p>
       </div>
-    </form>
-    <p>Need an account? <a href="{% url 'accounts:register' %}">Register</a>.</p>
+    </div>
+    <div class="auth-art-panel">
+      <img src="{% static 'images/generated/auth-collaboration.webp' %}" width="1200" height="800" alt="Students and an instructor collaborating on digital coursework.">
+      <div class="auth-art-caption">
+        <p><strong>One calm place for course collaboration.</strong></p>
+        <p>Keep learning materials, deadlines, submissions, and feedback connected.</p>
+      </div>
+    </div>
   </section>
 {% endblock %}

@@ -1,11 +1,23 @@
 {% extends "base.html" %}
+{% load static %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">Course collaboration</p>
-    <h1>One reliable place for course collaboration.</h1>
-    <p>Manage learning materials, assignments, and course participation in one workspace.</p>
-    {% if not user.is_authenticated %}
-      <p><a class="button-link" href="{% url 'accounts:register' %}">Create an account</a></p>
-    {% endif %}
+  <section class="home-hero">
+    <div>
+      <p class="eyebrow">Course collaboration</p>
+      <h1>Academic work, clearly organized.</h1>
+      <p class="lede">A reliable workspace for courses, learning materials, announcements, assignments, submissions, grading, and platform participation.</p>
+      <div class="form-actions">
+        {% if user.is_authenticated %}
+          <a class="button" href="{% url 'dashboard' %}">Open your dashboard</a>
+          <a class="button button-secondary" href="{% url 'courses:list' %}">View courses</a>
+        {% else %}
+          <a class="button" href="{% url 'accounts:register' %}">Create an account</a>
+          <a class="button button-secondary" href="{% url 'accounts:login' %}">Log in</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="home-visual">
+      <img src="{% static 'images/generated/auth-collaboration.webp' %}" width="1200" height="800" alt="A diverse group collaborating on university coursework.">
+    </div>
   </section>
 {% endblock %}

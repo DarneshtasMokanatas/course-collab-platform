@@ -1,0 +1,11 @@
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    {% if course %}
+      <li><a href="{% url 'courses:list' %}">{% if user.role == "INSTRUCTOR" or user.is_staff %}My courses{% else %}Course catalogue{% endif %}</a></li>
+      {% if not course_is_current %}<li><a href="{% url 'courses:detail' course.id %}">{{ course.code }}</a></li>{% endif %}
+    {% endif %}
+    {% if parent_url and parent_label %}<li><a href="{{ parent_url }}">{{ parent_label }}</a></li>{% endif %}
+    <li><span aria-current="page">{{ current_label }}</span></li>
+  </ol>
+</nav>

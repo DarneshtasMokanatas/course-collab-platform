@@ -1,17 +1,32 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Register | Course Collaboration Platform{% endblock %}
 {% block content %}
-  <section class="form-card">
-    <p class="eyebrow">Create an account</p>
-    <h1>Register</h1>
-    <form method="post" novalidate>
-      {% csrf_token %}
-      {% include "includes/form_fields.html" %}
-      <div class="form-actions">
-        <button type="submit">Register</button>
-        <a href="{% url 'home' %}">Cancel</a>
+  <section class="auth-layout" aria-labelledby="register-heading">
+    <div class="auth-form-panel">
+      <div class="form-card">
+        <header>
+          <p class="eyebrow">Create an account</p>
+          <h1 id="register-heading">Join your course workspace</h1>
+          <p class="lede">Choose the role that matches how you will use the platform. Your role controls the course tools available to you.</p>
+        </header>
+        <form method="post" novalidate data-loading>
+          {% csrf_token %}
+          {% include "includes/form_fields.html" %}
+          <div class="form-actions">
+            <button type="submit" data-loading-text="Creating account…">Create account</button>
+            <a class="button button-secondary" href="{% url 'home' %}">Cancel</a>
+          </div>
+        </form>
+        <p class="auth-switch">Already registered? <a href="{% url 'accounts:login' %}">Log in</a>.</p>
       </div>
-    </form>
-    <p>Already registered? <a href="{% url 'accounts:login' %}">Log in</a>.</p>
+    </div>
+    <div class="auth-art-panel">
+      <img src="{% static 'images/generated/auth-collaboration.webp' %}" width="1200" height="800" alt="Students and an instructor collaborating on digital coursework.">
+      <div class="auth-art-caption">
+        <p><strong>Built around clear academic workflows.</strong></p>
+        <p>Students learn and submit; instructors organize, review, and guide progress.</p>
+      </div>
+    </div>
   </section>
 {% endblock %}

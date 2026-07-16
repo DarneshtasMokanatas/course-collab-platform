@@ -1,40 +1,91 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b1f3a">
     <title>{% block title %}Course Collaboration Platform{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <script>document.documentElement.classList.replace("no-js", "js");</script>
+    <script src="{% static 'js/app.js' %}" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="{% url 'home' %}">Course Collaboration Platform</a>
-      <nav aria-label="Account navigation">
-        {% if user.is_authenticated %}
-          <a href="{% url 'dashboard' %}">Dashboard</a>
-          {% if user.role == "INSTRUCTOR" %}
-            <a href="{% url 'courses:list' %}">Courses</a>
-          {% else %}
-            <a href="{% url 'courses:list' %}">Catalogue</a>
+      <div class="header-inner">
+        <a class="brand" href="{% url 'home' %}" aria-label="Course Collaboration Platform home">
+          <span class="brand-mark" aria-hidden="true">CC</span>
+          <span class="brand-long">Course Collaboration Platform</span>
+          <span class="brand-short">CourseCollab</span>
+        </a>
+        <button class="menu-toggle button-secondary" type="button" aria-expanded="false" aria-controls="primary-navigation" hidden>
+          <span aria-hidden="true">☰</span>
+          Menu
+        </button>
+        <nav class="primary-nav" id="primary-navigation" aria-label="Primary navigation">
+          <div class="nav-links">
+            {% if user.is_authenticated %}
+              <a class="nav-link" href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == "dashboard" %}aria-current="page"{% endif %}>Dashboard</a>
+              <a class="nav-link" href="{% url 'courses:list' %}" {% if request.resolver_match.namespace == "courses" or request.resolver_match.namespace == "announcements" or request.resolver_match.namespace == "materials" or request.resolver_match.namespace == "assignments" or request.resolver_match.namespace == "analytics" %}aria-current="page"{% endif %}>
+                {% if user.role == "INSTRUCTOR" %}My courses{% else %}Course catalogue{% endif %}
+              </a>
+            {% else %}
+              <a class="nav-link" href="{% url 'accounts:login' %}" {% if request.resolver_match.url_name == "login" %}aria-current="page"{% endif %}>Log in</a>
+              <a class="nav-link" href="{% url 'accounts:register' %}" {% if request.resolver_match.url_name == "register" %}aria-current="page"{% endif %}>Register</a>
+            {% endif %}
+          </div>
+          {% if user.is_authenticated %}
+            <details class="user-menu">
+              <summary>
+                <span class="user-avatar" aria-hidden="true">{{ user.display_name|first|upper }}</span>
+                <span class="user-identity">
+                  <strong>{{ user.display_name }}</strong>
+                  <small>{{ user.get_role_display }}</small>
+                </span>
+              </summary>
+              <div class="user-popover">
+                <form method="post" action="{% url 'accounts:logout' %}">
+                  {% csrf_token %}
+                  <button class="button button-text" type="submit">Log out</button>
+                </form>
+              </div>
+            </details>
           {% endif %}
-          <form method="post" action="{% url 'accounts:logout' %}">
-            {% csrf_token %}
-            <button class="link-button" type="submit">Log out</button>
-          </form>
-        {% else %}
-          <a href="{% url 'accounts:login' %}">Log in</a>
-          <a href="{% url 'accounts:register' %}">Register</a>
-        {% endif %}
-      </nav>
+        </nav>
+      </div>
     </header>
     {% if messages %}
-      <div class="messages" aria-live="polite">
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-      </div>
+      <section class="message-region" aria-label="Notifications">
+        <div class="message-list">
+          {% for message in messages %}
+            <p class="alert {{ message.tags }}" {% if "error" in message.tags %}role="alert"{% else %}role="status"{% endif %}>
+              <strong class="visually-hidden">{% if "error" in message.tags %}Error:{% elif "warning" in message.tags %}Warning:{% elif "success" in message.tags %}Success:{% else %}Notice:{% endif %}</strong>
+              {{ message }}
+            </p>
+          {% endfor %}
+        </div>
+      </section>
     {% endif %}
-    <main id="main-content">{% block content %}{% endblock %}</main>
-    <footer><small>Academic course workspace</small></footer>
+    <main id="main-content" class="page-container">
+      {% block breadcrumbs %}{% endblock %}
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p><strong>CourseCollab</strong> — a focused academic course workspace.</p>
+        <p>Dates and deadlines display in Malaysia Time (MYT).</p>
+      </div>
+    </footer>
+    <dialog class="dialog" id="confirmation-dialog" aria-labelledby="confirmation-title">
+      <div class="dialog-content">
+        <h2 id="confirmation-title">Confirm action</h2>
+        <p id="confirmation-message">Are you sure you want to continue?</p>
+        <div class="form-actions">
+          <button class="button" id="confirmation-accept" type="button">Confirm</button>
+          <button class="button button-secondary" id="confirmation-cancel" type="button">Cancel</button>
+        </div>
+      </div>
+    </dialog>
   </body>
 </html>

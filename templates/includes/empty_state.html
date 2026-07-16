@@ -1,0 +1,9 @@
+{% load static %}
+<div class="empty-state">
+  {% if show_image != False %}
+    <img src="{% static 'images/generated/empty-learning.webp' %}" width="640" height="480" alt="" loading="lazy">
+  {% endif %}
+  {% if empty_title %}<strong class="empty-state-title">{{ empty_title }}</strong>{% endif %}
+  <p>{{ empty_message }}</p>
+  {% if empty_url and empty_action %}<a class="button" href="{{ empty_url }}">{{ empty_action }}</a>{% endif %}
+</div>

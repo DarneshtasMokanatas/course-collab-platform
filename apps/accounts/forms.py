@@ -9,6 +9,20 @@ class RegistrationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ("username", "email", "display_name", "role")
+        widgets = {
+            "username": forms.TextInput(attrs={"autocomplete": "username"}),
+            "email": forms.EmailInput(attrs={"autocomplete": "email"}),
+            "display_name": forms.TextInput(attrs={"autocomplete": "name"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["role"].help_text = (
+            "Students enrol and submit coursework. "
+            "Instructors create and manage courses."
+        )
+        self.fields["password1"].widget.attrs["autocomplete"] = "new-password"
+        self.fields["password2"].widget.attrs["autocomplete"] = "new-password"
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip().lower()
@@ -43,3 +57,8 @@ class IdentityAuthenticationForm(AuthenticationForm):
         "invalid_login": "Please enter a correct username or email and password.",
         "inactive": "This account is inactive.",
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].widget.attrs["autocomplete"] = "username"
+        self.fields["password"].widget.attrs["autocomplete"] = "current-password"
