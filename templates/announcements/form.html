@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }} | {{ course.code }}{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <p class="eyebrow">{{ course.code }}</p>
+    <h1>{{ heading }}</h1>
+    <form method="post">
+      {% csrf_token %}
+      {% include "includes/form_fields.html" %}
+      <div class="form-actions">
+        <button type="submit">Save announcement</button>
+        <a href="{% url 'announcements:list' course.id %}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

@@ -10,4 +10,23 @@
       <p>Your enrolled courses and upcoming work will appear here.</p>
     {% endif %}
   </section>
+  {% if user.role == "STUDENT" %}
+    <section>
+      <h2>Recent announcements</h2>
+      <p>{{ unread_announcement_count }} unread announcement{{ unread_announcement_count|pluralize }}.</p>
+      {% if recent_announcements %}
+        <ol class="card-list">
+          {% for announcement in recent_announcements %}
+            <li>
+              <p class="eyebrow">{{ announcement.course.code }} · {% if announcement.is_read %}Read{% else %}Unread{% endif %}</p>
+              <h3><a href="{% url 'announcements:detail' announcement.course_id announcement.id %}">{{ announcement.title }}</a></h3>
+              <p>{{ announcement.published_at|date:"M j, Y, g:i A T" }}</p>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="empty-state">No course announcements are available.</p>
+      {% endif %}
+    </section>
+  {% endif %}
 {% endblock %}

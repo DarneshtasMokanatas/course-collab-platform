@@ -31,6 +31,14 @@ class Announcement(models.Model):
 
     class Meta:
         db_table = "announcements_announcement"
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    ~models.Q(status="PUBLISHED") | models.Q(published_at__isnull=False)
+                ),
+                name="announcement_published_at_required",
+            )
+        ]
         indexes = [
             models.Index(
                 fields=["course", "status", "-published_at"],

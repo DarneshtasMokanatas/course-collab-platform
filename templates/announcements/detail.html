@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ announcement.title }} | {{ course.code }}{% endblock %}
+{% block content %}
+  <article class="hero">
+    <p class="eyebrow">
+      {{ course.code }} ·
+      {% if announcement.is_pinned %}Pinned · {% endif %}
+      {{ announcement.get_status_display }}
+    </p>
+    <h1>{{ announcement.title }}</h1>
+    <p>{{ announcement.body|linebreaksbr }}</p>
+    {% if announcement.published_at %}
+      <p>Published {{ announcement.published_at|date:"M j, Y, g:i A T" }} by {{ announcement.author.display_name }}</p>
+    {% endif %}
+    <div class="form-actions">
+      <a class="button-link" href="{% url 'announcements:list' course.id %}">Back to announcements</a>
+      {% if owner and announcement.status != 'ARCHIVED' %}
+        <a class="button-link" href="{% url 'announcements:edit' course.id announcement.id %}">Edit</a>
+        {% if announcement.status == 'DRAFT' %}
+          <form method="post" action="{% url 'announcements:publish' course.id announcement.id %}">
+            {% csrf_token %}
+            <button type="submit">Publish</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{% url 'announcements:archive' course.id announcement.id %}" onsubmit="return confirm('Archive this announcement?');">
+          {% csrf_token %}
+          <button type="submit">Archive</button>
+        </form>
+      {% endif %}
+    </div>
+  </article>
+{% endblock %}

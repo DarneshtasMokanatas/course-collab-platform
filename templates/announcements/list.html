@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Announcements | {{ course.code }}{% endblock %}
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">{{ course.code }}</p>
+    <h1>Announcements</h1>
+    <div class="form-actions">
+      {% if owner %}
+        <a class="button-link" href="{% url 'announcements:new' course.id %}">New announcement</a>
+        <a href="{% url 'courses:detail' course.id %}">Back to course</a>
+      {% else %}
+        <a href="{% url 'courses:detail' course.id %}">Back to course</a>
+      {% endif %}
+    </div>
+  </section>
+  <section>
+    {% if announcements %}
+      <ol class="card-list">
+        {% for announcement in announcements %}
+          <li>
+            <p class="eyebrow">
+              {% if announcement.is_pinned %}Pinned · {% endif %}
+              {% if owner %}{{ announcement.get_status_display }}{% elif announcement.is_read %}Read{% else %}Unread{% endif %}
+            </p>
+            <h2><a href="{% url 'announcements:detail' course.id announcement.id %}">{{ announcement.title }}</a></h2>
+            {% if announcement.published_at %}
+              <p>Published {{ announcement.published_at|date:"M j, Y, g:i A T" }}</p>
+            {% else %}
+              <p>Created {{ announcement.created_at|date:"M j, Y, g:i A T" }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="empty-state">No announcements are available.</p>
+    {% endif %}
+  </section>
+{% endblock %}
