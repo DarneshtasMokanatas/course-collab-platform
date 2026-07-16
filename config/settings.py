@@ -5,6 +5,8 @@ from urllib.parse import unquote, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+PROCESS_ENV_KEYS = frozenset(os.environ)
+DOTENV_PATH = BASE_DIR / ".env"
 
 
 def load_dotenv(path):
@@ -40,18 +42,36 @@ def database_config(url):
     }
 
 
-load_dotenv(BASE_DIR / ".env")
+load_dotenv(DOTENV_PATH)
+
+environment_value = os.getenv("DJANGO_ENVIRONMENT")
+ENVIRONMENT = (
+    environment_value.strip().lower()
+    if environment_value
+    else ("local" if DOTENV_PATH.exists() else "production")
+)
+if ENVIRONMENT not in {"local", "test", "production"}:
+    raise ImproperlyConfigured("DJANGO_ENVIRONMENT must be local, test, or production")
+IS_PRODUCTION = ENVIRONMENT == "production"
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY is required")
 
 DEBUG = env_bool("DJANGO_DEBUG", False)
+if ENVIRONMENT != "local" and DEBUG:
+    raise ImproperlyConfigured("DJANGO_DEBUG may be true only in local development")
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
+if IS_PRODUCTION and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS is required in production")
+if IS_PRODUCTION and "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "DJANGO_ALLOWED_HOSTS cannot contain a wildcard in production"
+    )
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -97,14 +117,14 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": database_config(
-        os.getenv(
-            "DATABASE_URL",
-            "postgresql://course_app:course_app@127.0.0.1:5432/course_app",
-        )
+database_url = os.getenv("DATABASE_URL")
+if IS_PRODUCTION and "DATABASE_URL" not in PROCESS_ENV_KEYS:
+    raise ImproperlyConfigured(
+        "Production DATABASE_URL must be supplied by the process environment"
     )
-}
+if not database_url:
+    database_url = "postgresql://course_app:course_app@127.0.0.1:5432/course_app"
+DATABASES = {"default": database_config(database_url)}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -132,10 +152,55 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "media/"
 MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
+if IS_PRODUCTION and ("MEDIA_ROOT" not in os.environ or not MEDIA_ROOT.is_absolute()):
+    raise ImproperlyConfigured(
+        "Production MEDIA_ROOT must be an explicit absolute path"
+    )
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
-SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", False)
-CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", False)
+SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", IS_PRODUCTION)
+SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", IS_PRODUCTION)
+CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", IS_PRODUCTION)
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SECURE_HSTS_SECONDS = int(
+    os.getenv("DJANGO_SECURE_HSTS_SECONDS", "31536000" if IS_PRODUCTION else "0")
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", IS_PRODUCTION
+)
+SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+if env_bool("DJANGO_TRUST_PROXY_HEADERS", False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+if IS_PRODUCTION:
+    insecure_settings = [
+        name
+        for name, enabled in (
+            ("DJANGO_SECURE_SSL_REDIRECT", SECURE_SSL_REDIRECT),
+            ("DJANGO_SESSION_COOKIE_SECURE", SESSION_COOKIE_SECURE),
+            ("DJANGO_CSRF_COOKIE_SECURE", CSRF_COOKIE_SECURE),
+            (
+                "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
+                SECURE_HSTS_INCLUDE_SUBDOMAINS,
+            ),
+        )
+        if not enabled
+    ]
+    if SECURE_HSTS_SECONDS <= 0:
+        insecure_settings.append("DJANGO_SECURE_HSTS_SECONDS")
+    if insecure_settings:
+        raise ImproperlyConfigured(
+            "Production requires secure settings: " + ", ".join(insecure_settings)
+        )

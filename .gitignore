@@ -9,3 +9,7 @@ media/*
 !media/.gitkeep
 staticfiles/
 .DS_Store
+backups/
+*.dump
+*.tar.gz
+*.sha256
