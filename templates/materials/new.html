@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Add material | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% url 'materials:list' course.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label="Materials" current_label="Add material" %}{% endblock %}
 {% block content %}
   <section class="form-card">
-    <h1>Add material</h1>
-    <form method="post" enctype="multipart/form-data" novalidate>
+    <header><p class="eyebrow">{{ course.code }} · Learning materials</p><h1>Add material</h1><p class="lede">Create the material record and upload version 1. Future uploads remain in an immutable version history.</p></header>
+    <form method="post" enctype="multipart/form-data" novalidate data-loading>
       {% csrf_token %}
       {% include "includes/form_fields.html" %}
+      <p class="context-note">Files are downloaded as protected attachments. Storage paths and integrity hashes are never shown to students.</p>
       <div class="form-actions">
-        <button type="submit">Upload version 1</button>
-        <a href="{% url 'materials:list' course.id %}">Cancel</a>
+        <button type="submit" data-loading-text="Uploading…">Upload version 1</button>
+        <a class="button button-secondary" href="{% url 'materials:list' course.id %}">Cancel</a>
       </div>
     </form>
   </section>

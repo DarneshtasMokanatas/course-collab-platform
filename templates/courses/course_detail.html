@@ -1,3 +1,51 @@
 {% extends "base.html" %}
 {% block title %}{{ course.code }} | Course Collaboration Platform{% endblock %}
-{% block content %}<section class="hero"><p class="eyebrow">{{ course.get_status_display }} · Enrolment {{ course.get_enrolment_mode_display }}</p><h1>{{ course.code }} — {{ course.title }}</h1><p>{{ course.description }}</p>{% if course.syllabus %}<h2>Syllabus</h2><p>{{ course.syllabus }}</p>{% endif %}<div class="form-actions"><a class="button-link" href="{% url 'courses:edit' course.id %}">Edit course</a><a class="button-link" href="{% url 'announcements:list' course.id %}">Announcements</a><a class="button-link" href="{% url 'assignments:list' course.id %}">Assignments</a><a class="button-link" href="{% url 'materials:list' course.id %}">Materials</a><a class="button-link" href="{% url 'analytics:course' course.id %}">Platform activity</a>{% if course.status == 'DRAFT' %}<form method="post" action="{% url 'courses:publish' course.id %}">{% csrf_token %}<button type="submit">Publish course</button></form>{% endif %}</div></section><section><h2>Sections</h2>{% if course.sections.all %}<ol class="card-list">{% for section in course.sections.all %}<li><h3>{{ section.position }}. {{ section.title }}</h3><p>{{ section.description }}</p></li>{% endfor %}</ol>{% else %}<p class="empty-state">Add at least one section before publishing.</p>{% endif %}</section>{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course course_is_current=True current_label=course.code %}{% endblock %}
+{% block content %}
+  <header class="course-hero">
+    <div>
+      <div class="badge-group">
+        {% include "includes/status_badge.html" with status=course.status %}
+        {% include "includes/status_badge.html" with status=course.enrolment_mode label=course.get_enrolment_mode_display|add:" enrolment" %}
+      </div>
+      <p class="eyebrow">{{ course.code }}</p>
+      <h1>{{ course.title }}</h1>
+      <p class="lede">{{ course.description }}</p>
+    </div>
+    <div class="page-actions">
+      <a class="button button-secondary" href="{% url 'courses:edit' course.id %}">Edit course</a>
+      {% if course.status == "DRAFT" %}
+        <form method="post" action="{% url 'courses:publish' course.id %}" data-confirm="Publish this course? Students can discover it when enrolment is open.">
+          {% csrf_token %}
+          <button type="submit">Publish course</button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="overview" %}
+  <div class="content-grid">
+    <section class="surface content-panel">
+      <p class="eyebrow">Course outline</p>
+      <h2>Syllabus</h2>
+      {% if course.syllabus %}<div class="prose">{{ course.syllabus|linebreaks }}</div>{% else %}<p class="context-note">No syllabus has been added yet.</p>{% endif %}
+    </section>
+    <section class="surface content-panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Ordered topics</p><h2>Sections</h2></div>
+        <a href="{% url 'courses:edit' course.id %}">Edit sections</a>
+      </div>
+      {% if course.sections.all %}
+        <ol class="section-list">
+          {% for section in course.sections.all %}
+            <li>
+              <span class="section-number">{{ section.position }}</span>
+              <div><h3>{{ section.title }}</h3>{% if section.description %}<p>{{ section.description }}</p>{% endif %}</div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        {% include "includes/empty_state.html" with show_image=False empty_message="Add at least one section before publishing." %}
+      {% endif %}
+    </section>
+  </div>
+{% endblock %}

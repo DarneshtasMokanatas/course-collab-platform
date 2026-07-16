@@ -1,22 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Course catalogue | Course Collaboration Platform{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with current_label="Course catalogue" %}{% endblock %}
 {% block content %}
-  <div class="page-heading"><div><p class="eyebrow">Course catalogue</p><h1>Open courses</h1></div></div>
+  <header class="page-header">
+    <div class="page-header-copy">
+      <p class="eyebrow">Discover courses</p>
+      <h1>Course catalogue</h1>
+      <p class="lede">Browse published courses that are currently open for self-enrolment.</p>
+    </div>
+  </header>
   {% if page.object_list %}
-    <ul class="card-list">
+    <ul class="card-list course-card-grid">
       {% for course in page.object_list %}
-        <li>
-          <h2>{{ course.code }} — {{ course.title }}</h2>
-          <p>{{ course.description }}</p>
-          <form method="post" action="{% url 'courses:enrol' course.id %}">
+        <li class="course-card">
+          <div class="course-card-topline">
+            <span class="course-code">{{ course.code }}</span>
+            {% include "includes/status_badge.html" with status="OPEN" label="Open enrolment" %}
+          </div>
+          <h2>{{ course.title }}</h2>
+          <p>{{ course.description|truncatewords:32 }}</p>
+          <form method="post" action="{% url 'courses:enrol' course.id %}" data-loading>
             {% csrf_token %}
-            <button type="submit">Enrol</button>
+            <button type="submit" data-loading-text="Enrolling…">Enrol in course</button>
           </form>
         </li>
       {% endfor %}
     </ul>
     {% include "includes/pagination.html" with pagination_label="Catalogue pages" %}
   {% else %}
-    <p class="empty-state">There are no published courses open for enrolment.</p>
+    {% include "includes/empty_state.html" with empty_title="No open courses" empty_message="There are no published courses open for enrolment right now. Check back after an instructor opens a course." %}
   {% endif %}
 {% endblock %}

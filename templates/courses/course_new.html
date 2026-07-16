@@ -1,3 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Create course | Course Collaboration Platform{% endblock %}
-{% block content %}<section class="form-card"><p class="eyebrow">Course setup</p><h1>Create a draft course</h1><form method="post" novalidate>{% csrf_token %}{% include "includes/form_fields.html" %}<div class="form-actions"><button type="submit">Create draft</button><a href="{% url 'courses:list' %}">Cancel</a></div></form></section>{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with current_label="Create course" %}{% endblock %}
+{% block content %}
+  <section class="form-card">
+    <header>
+      <p class="eyebrow">Course setup</p>
+      <h1>Create a draft course</h1>
+      <p class="lede">Start with the course identity and enrolment setting. Add ordered sections on the next screen before publishing.</p>
+    </header>
+    <form method="post" novalidate data-loading>
+      {% csrf_token %}
+      {% include "includes/form_fields.html" %}
+      <div class="form-actions">
+        <button type="submit" data-loading-text="Creating draft…">Create draft</button>
+        <a class="button button-secondary" href="{% url 'courses:list' %}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

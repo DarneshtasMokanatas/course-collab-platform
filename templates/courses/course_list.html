@@ -1,21 +1,35 @@
 {% extends "base.html" %}
 {% block title %}My courses | Course Collaboration Platform{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with current_label="My courses" %}{% endblock %}
 {% block content %}
-  <div class="page-heading">
-    <div><p class="eyebrow">Teaching workspace</p><h1>My courses</h1></div>
-    <a class="button-link" href="{% url 'courses:new' %}">Create course</a>
-  </div>
+  <header class="page-header">
+    <div class="page-header-copy">
+      <p class="eyebrow">Teaching workspace</p>
+      <h1>My courses</h1>
+      <p class="lede">Create course structures, manage publication, and open learning spaces for students.</p>
+    </div>
+    <div class="page-actions"><a class="button" href="{% url 'courses:new' %}">Create course</a></div>
+  </header>
   {% if page.object_list %}
-    <ul class="card-list">
+    <ul class="card-list course-card-grid">
       {% for course in page.object_list %}
-        <li>
-          <h2><a href="{% url 'courses:detail' course.id %}">{{ course.code }} — {{ course.title }}</a></h2>
-          <p>{{ course.get_status_display }} · Enrolment {{ course.get_enrolment_mode_display }}</p>
+        <li class="course-card">
+          <div class="course-card-topline">
+            <span class="course-code">{{ course.code }}</span>
+            <span class="badge-group">
+              {% include "includes/status_badge.html" with status=course.status %}
+              {% include "includes/status_badge.html" with status=course.enrolment_mode label=course.get_enrolment_mode_display %}
+            </span>
+          </div>
+          <h2><a href="{% url 'courses:detail' course.id %}">{{ course.title }}</a></h2>
+          <p>{{ course.description|truncatewords:28 }}</p>
+          <a class="card-link" href="{% url 'courses:detail' course.id %}">Manage course <span aria-hidden="true">→</span></a>
         </li>
       {% endfor %}
     </ul>
     {% include "includes/pagination.html" with pagination_label="Course pages" %}
   {% else %}
-    <p class="empty-state">You have not created a course yet.</p>
+    {% url 'courses:new' as new_course_url %}
+    {% include "includes/empty_state.html" with empty_title="No courses created" empty_message="Start with a draft course, then add at least one ordered section before publishing." empty_url=new_course_url empty_action="Create a draft course" %}
   {% endif %}
 {% endblock %}

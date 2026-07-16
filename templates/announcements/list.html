@@ -1,39 +1,43 @@
 {% extends "base.html" %}
 {% block title %}Announcements | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course current_label="Announcements" %}{% endblock %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">{{ course.code }}</p>
-    <h1>Announcements</h1>
-    <div class="form-actions">
-      {% if owner %}
-        <a class="button-link" href="{% url 'announcements:new' course.id %}">New announcement</a>
-        <a href="{% url 'courses:detail' course.id %}">Back to course</a>
-      {% else %}
-        <a href="{% url 'courses:detail' course.id %}">Back to course</a>
-      {% endif %}
-    </div>
-  </section>
-  <section>
-    {% if page.object_list %}
-      <ol class="card-list">
-        {% for announcement in page.object_list %}
-          <li>
-            <p class="eyebrow">
-              {% if announcement.is_pinned %}Pinned · {% endif %}
-              {% if owner %}{{ announcement.get_status_display }}{% elif announcement.is_read %}Read{% else %}Unread{% endif %}
-            </p>
-            <h2><a href="{% url 'announcements:detail' course.id announcement.id %}">{{ announcement.title }}</a></h2>
-            {% if announcement.published_at %}
-              <p>Published {{ announcement.published_at|date:"M j, Y, g:i A T" }}</p>
+  <header class="page-header">
+    <div class="page-header-copy"><p class="eyebrow">{{ course.code }}</p><h1>Announcements</h1><p class="lede">A chronological course feed with pinned items kept easy to find.</p></div>
+    {% if owner %}<div class="page-actions"><a class="button" href="{% url 'announcements:new' course.id %}">New announcement</a></div>{% endif %}
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="announcements" %}
+  {% if page.object_list %}
+    <ol class="card-list announcement-list">
+      {% for announcement in page.object_list %}
+        <li class="{% if not owner and not announcement.is_read %}is-unread{% endif %}">
+          <div class="badge-group">
+            {% if announcement.is_pinned %}{% include "includes/status_badge.html" with status="PINNED" %}{% endif %}
+            {% if owner %}
+              {% include "includes/status_badge.html" with status=announcement.status %}
+            {% elif announcement.is_read %}
+              {% include "includes/status_badge.html" with status="READ" %}
             {% else %}
-              <p>Created {{ announcement.created_at|date:"M j, Y, g:i A T" }}</p>
+              {% include "includes/status_badge.html" with status="UNREAD" %}
             {% endif %}
-          </li>
-        {% endfor %}
-      </ol>
-      {% include "includes/pagination.html" with pagination_label="Announcement pages" %}
+          </div>
+          <h2><a href="{% url 'announcements:detail' course.id announcement.id %}">{{ announcement.title }}</a></h2>
+          {% if announcement.published_at %}
+            <p>Published {{ announcement.published_at|date:"M j, Y, g:i A" }} MYT by {{ announcement.author.display_name }}</p>
+          {% else %}
+            <p>Created {{ announcement.created_at|date:"M j, Y, g:i A" }} MYT</p>
+          {% endif %}
+          <a class="card-link" href="{% url 'announcements:detail' course.id announcement.id %}">Read announcement <span aria-hidden="true">→</span></a>
+        </li>
+      {% endfor %}
+    </ol>
+    {% include "includes/pagination.html" with pagination_label="Announcement pages" %}
+  {% else %}
+    {% if owner %}
+      {% url 'announcements:new' course.id as new_announcement_url %}
+      {% include "includes/empty_state.html" with empty_title="No announcements yet" empty_message="Publish a welcome or course update to begin the durable course feed." empty_url=new_announcement_url empty_action="Create announcement" %}
     {% else %}
-      <p class="empty-state">No announcements are available.</p>
+      {% include "includes/empty_state.html" with empty_title="No announcements available" empty_message="Published course updates will appear here." %}
     {% endif %}
-  </section>
+  {% endif %}
 {% endblock %}

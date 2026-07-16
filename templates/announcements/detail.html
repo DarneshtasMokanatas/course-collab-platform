@@ -1,32 +1,33 @@
 {% extends "base.html" %}
 {% block title %}{{ announcement.title }} | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% url 'announcements:list' course.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label="Announcements" current_label=announcement.title %}{% endblock %}
 {% block content %}
-  <article class="hero">
-    <p class="eyebrow">
-      {{ course.code }} ·
-      {% if announcement.is_pinned %}Pinned · {% endif %}
-      {{ announcement.get_status_display }}
-    </p>
-    <h1>{{ announcement.title }}</h1>
-    <p>{{ announcement.body|linebreaksbr }}</p>
-    {% if announcement.published_at %}
-      <p>Published {{ announcement.published_at|date:"M j, Y, g:i A T" }} by {{ announcement.author.display_name }}</p>
-    {% endif %}
-    <div class="form-actions">
-      <a class="button-link" href="{% url 'announcements:list' course.id %}">Back to announcements</a>
-      {% if owner and announcement.status != 'ARCHIVED' %}
-        <a class="button-link" href="{% url 'announcements:edit' course.id announcement.id %}">Edit</a>
-        {% if announcement.status == 'DRAFT' %}
-          <form method="post" action="{% url 'announcements:publish' course.id announcement.id %}">
-            {% csrf_token %}
-            <button type="submit">Publish</button>
+  <article class="surface article-panel">
+    <header>
+      <div class="badge-group">
+        {% if announcement.is_pinned %}{% include "includes/status_badge.html" with status="PINNED" %}{% endif %}
+        {% include "includes/status_badge.html" with status=announcement.status %}
+      </div>
+      <p class="eyebrow">{{ course.code }} announcement</p>
+      <h1>{{ announcement.title }}</h1>
+      {% if announcement.published_at %}
+        <p class="article-meta">Published {{ announcement.published_at|date:"M j, Y, g:i A" }} MYT by {{ announcement.author.display_name }}</p>
+      {% endif %}
+    </header>
+    <div class="prose">{{ announcement.body|linebreaks }}</div>
+    <footer class="page-actions">
+      <a class="button button-secondary" href="{% url 'announcements:list' course.id %}">Back to announcements</a>
+      {% if owner and announcement.status != "ARCHIVED" %}
+        <a class="button button-secondary" href="{% url 'announcements:edit' course.id announcement.id %}">Edit</a>
+        {% if announcement.status == "DRAFT" %}
+          <form method="post" action="{% url 'announcements:publish' course.id announcement.id %}" data-confirm="Publish this announcement to enrolled students?">
+            {% csrf_token %}<button type="submit">Publish</button>
           </form>
         {% endif %}
-        <form method="post" action="{% url 'announcements:archive' course.id announcement.id %}" onsubmit="return confirm('Archive this announcement?');">
-          {% csrf_token %}
-          <button type="submit">Archive</button>
+        <form method="post" action="{% url 'announcements:archive' course.id announcement.id %}" data-confirm="Archive this announcement? It will no longer appear to students." data-confirm-tone="danger">
+          {% csrf_token %}<button class="button-danger" type="submit">Archive</button>
         </form>
       {% endif %}
-    </div>
+    </footer>
   </article>
 {% endblock %}

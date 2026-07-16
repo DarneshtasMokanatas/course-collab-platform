@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block title %}New version | {{ material.title }}{% endblock %}
+{% block breadcrumbs %}{% url 'materials:list' course.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label="Materials" current_label="Upload new version" %}{% endblock %}
 {% block content %}
   <section class="form-card">
-    <h1>New version: {{ material.title }}</h1>
-    <form method="post" enctype="multipart/form-data" novalidate>
+    <header><p class="eyebrow">{{ course.code }} · {{ material.title }}</p><h1>Upload a new version</h1><p class="lede">The new upload becomes current in the interface. Earlier versions and timestamps remain available.</p></header>
+    <form method="post" enctype="multipart/form-data" novalidate data-loading>
       {% csrf_token %}
       {% include "includes/form_fields.html" %}
       <div class="form-actions">
-        <button type="submit">Upload version</button>
-        <a href="{% url 'materials:list' course.id %}">Cancel</a>
+        <button type="submit" data-loading-text="Uploading…">Upload version</button>
+        <a class="button button-secondary" href="{% url 'materials:list' course.id %}">Cancel</a>
       </div>
     </form>
   </section>

@@ -8,6 +8,18 @@ class CourseForm(forms.ModelForm):
     class Meta:
         model = Course
         fields = ("code", "title", "description", "syllabus", "enrolment_mode")
+        widgets = {
+            "description": forms.Textarea(attrs={"rows": 4}),
+            "syllabus": forms.Textarea(attrs={"rows": 7}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[
+            "enrolment_mode"
+        ].help_text = (
+            "Open allows student self-enrolment after the course is published."
+        )
 
     def clean_code(self):
         return self.cleaned_data["code"].strip().upper()
@@ -17,6 +29,7 @@ class CourseSectionForm(forms.ModelForm):
     class Meta:
         model = CourseSection
         fields = ("title", "description")
+        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
 
 
 class BaseCourseSectionFormSet(BaseInlineFormSet):

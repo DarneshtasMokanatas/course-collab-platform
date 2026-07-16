@@ -1,35 +1,57 @@
 {% extends "base.html" %}
 {% block title %}{{ course.code }} materials | Course Collaboration Platform{% endblock %}
+{% block breadcrumbs %}{% url 'courses:detail' course.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course current_label="Materials" %}{% endblock %}
 {% block content %}
-  <div class="page-heading">
-    <div><p class="eyebrow">Course materials</p><h1>{{ course.code }} materials</h1></div>
-    {% if owner %}<a class="button-link" href="{% url 'materials:new' course.id %}">Add material</a>{% endif %}
-  </div>
+  <header class="page-header">
+    <div class="page-header-copy"><p class="eyebrow">{{ course.code }}</p><h1>Learning materials</h1><p class="lede">Current files and retained version history for course resources.</p></div>
+    {% if owner %}<div class="page-actions"><a class="button" href="{% url 'materials:new' course.id %}">Add material</a></div>{% endif %}
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="materials" %}
   {% if page.object_list %}
-    <ul class="card-list">
+    <ul class="card-list resource-list">
       {% for material in page.object_list %}
         <li>
-          <h2>{{ material.title }}</h2>
-          <p>{{ material.description }}</p>
+          <div class="resource-header">
+            <div>
+              <div class="badge-group">
+                {% include "includes/status_badge.html" with status=material.status %}
+                {% if material.section %}<span class="meta-chip">{{ material.section.title }}</span>{% endif %}
+              </div>
+              <h2>{{ material.title }}</h2>
+              {% if material.description %}<p>{{ material.description }}</p>{% endif %}
+            </div>
+            {% if owner %}<a class="button button-secondary" href="{% url 'materials:version_new' course.id material.id %}">Upload new version</a>{% endif %}
+          </div>
           {% if material.ordered_versions %}
-            <ol>
+            <ol class="version-list">
               {% for version in material.ordered_versions %}
                 <li>
-                  {% if forloop.last %}<strong>Current — </strong>{% endif %}
-                  Version {{ version.version_number }} · {{ version.created_at|date:"M j, Y, g:i A T" }} ·
-                  <a href="{% url 'materials:download' course.id material.id version.id %}">{{ version.original_filename }}</a>
+                  <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
+                  <div>
+                    <div class="badge-group">
+                      <strong>Version {{ version.version_number }}</strong>
+                      {% if forloop.last %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
+                    </div>
+                    <p>{{ version.original_filename }} · {{ version.size_bytes|filesizeformat }}</p>
+                    <p>Uploaded {{ version.created_at|date:"M j, Y, g:i A" }} MYT</p>
+                  </div>
+                  <a class="button button-secondary" href="{% url 'materials:download' course.id material.id version.id %}">Download</a>
                 </li>
               {% endfor %}
             </ol>
           {% else %}
-            <p class="empty-state">No file version has been uploaded.</p>
+            {% include "includes/empty_state.html" with show_image=False empty_message="No file version has been uploaded." %}
           {% endif %}
-          {% if owner %}<a href="{% url 'materials:version_new' course.id material.id %}">Upload new version</a>{% endif %}
         </li>
       {% endfor %}
     </ul>
     {% include "includes/pagination.html" with pagination_label="Material pages" %}
   {% else %}
-    <p class="empty-state">No materials are available.</p>
+    {% if owner %}
+      {% url 'materials:new' course.id as new_material_url %}
+      {% include "includes/empty_state.html" with empty_title="No materials yet" empty_message="Add the first logical material and upload its initial immutable file version." empty_url=new_material_url empty_action="Add material" %}
+    {% else %}
+      {% include "includes/empty_state.html" with empty_title="No materials available" empty_message="Published learning materials will appear here when your instructor adds them." %}
+    {% endif %}
   {% endif %}
 {% endblock %}

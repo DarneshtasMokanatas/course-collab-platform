@@ -1,3 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Edit {{ course.code }} | Course Collaboration Platform{% endblock %}
-{% block content %}<section class="form-card wide-card"><p class="eyebrow">Course setup</p><h1>Edit {{ course.code }}</h1><form method="post" novalidate>{% csrf_token %}{% include "includes/form_fields.html" %}{{ formset.management_form }}<fieldset><legend>Ordered sections</legend>{% if formset.non_form_errors %}<div class="form-errors" role="alert">{{ formset.non_form_errors }}</div>{% endif %}{% for section_form in formset %}<div class="section-form">{{ section_form.id }}{% for field in section_form.visible_fields %}<div class="form-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>{% endfor %}</fieldset><div class="form-actions"><button type="submit">Save course</button><a href="{% url 'courses:detail' course.id %}">Cancel</a></div></form></section>{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course current_label="Edit course" %}{% endblock %}
+{% block content %}
+  <section class="form-card wide-card">
+    <header>
+      <p class="eyebrow">{{ course.code }} · Course setup</p>
+      <h1>Edit course and sections</h1>
+      <p class="lede">Keep section order unique and sequential. Course changes are validated before they are saved.</p>
+    </header>
+    <form method="post" novalidate data-loading>
+      {% csrf_token %}
+      {% include "includes/form_fields.html" %}
+      {{ formset.management_form }}
+      <fieldset>
+        <legend>Ordered sections</legend>
+        {% if formset.non_form_errors %}<div class="form-errors" role="alert">{{ formset.non_form_errors }}</div>{% endif %}
+        {% if formset.total_error_count %}
+          <div class="form-errors" role="alert">
+            <h2>Review section details</h2>
+            <ul>
+              {% for section_form in formset %}
+                {% for field in section_form %}
+                  {% for error in field.errors %}<li><a href="#{{ field.id_for_label }}">Section {{ forloop.parentloop.parentloop.counter }}, {{ field.label }}: {{ error }}</a></li>{% endfor %}
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+        <div class="section-form-list">
+          {% for section_form in formset %}
+            <section class="section-form" aria-labelledby="section-{{ forloop.counter }}-title">
+              <h2 id="section-{{ forloop.counter }}-title">Section {{ forloop.counter }}</h2>
+              {{ section_form.id }}
+              {% for field in section_form.visible_fields %}
+                <div class="form-field">
+                  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<span class="required-marker" aria-hidden="true"> *</span><span class="visually-hidden"> required</span>{% endif %}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="help-text" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+                  {% if field.errors %}<div class="field-errors" id="{{ field.auto_id }}_error">{{ field.errors }}</div>{% endif %}
+                </div>
+              {% endfor %}
+            </section>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="form-actions">
+        <button type="submit" data-loading-text="Saving course…">Save course</button>
+        <a class="button button-secondary" href="{% url 'courses:detail' course.id %}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

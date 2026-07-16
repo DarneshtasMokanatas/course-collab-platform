@@ -1,105 +1,133 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Dashboard | Course Collaboration Platform{% endblock %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">{{ user.get_role_display }} dashboard</p>
-    <h1>Welcome, {{ user.display_name }}.</h1>
-    {% if user.role == "INSTRUCTOR" %}
-      <p>Review course workload and recent platform participation.</p>
-    {% else %}
-      <p>Review your courses, deadlines, submissions, announcements, and released results.</p>
-    {% endif %}
+  <section class="dashboard-banner" aria-labelledby="dashboard-heading">
+    <div class="dashboard-banner-copy">
+      <p class="eyebrow">{{ user.get_role_display }} dashboard</p>
+      <h1 id="dashboard-heading">Welcome, {{ user.display_name }}.</h1>
+      {% if user.role == "INSTRUCTOR" %}
+        <p>Review course workload and recent platform participation.</p>
+      {% else %}
+        <p>Keep your courses, deadlines, submissions, announcements, and released results in view.</p>
+      {% endif %}
+    </div>
+    <img src="{% static 'images/generated/dashboard-learning-banner.webp' %}" width="1400" height="614" alt="">
   </section>
 
   {% if user.role == "STUDENT" %}
-    <section aria-labelledby="enrolled-courses">
-      <h2 id="enrolled-courses">Enrolled courses</h2>
-      {% if active_enrolments %}
-        <ul class="card-list">
-          {% for enrolment in active_enrolments %}
-            <li>
-              <h3><a href="{% url 'courses:detail' enrolment.course.id %}">{{ enrolment.course.code }} — {{ enrolment.course.title }}</a></h3>
-              <p>{{ enrolment.course.description }}</p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">You are not enrolled in any courses. Browse the catalogue to get started.</p>
-      {% endif %}
-      {% if has_more_enrolments %}<p><a href="{% url 'courses:list' %}">Browse the full course list</a></p>{% endif %}
-    </section>
+    <div class="dashboard-grid">
+      <section class="dashboard-section dashboard-section-wide" aria-labelledby="enrolled-courses">
+        <div class="section-heading">
+          <div><p class="eyebrow">Your learning</p><h2 id="enrolled-courses">Enrolled courses</h2></div>
+          <a href="{% url 'courses:list' %}">Browse catalogue</a>
+        </div>
+        {% if active_enrolments %}
+          <ul class="card-list course-card-grid">
+            {% for enrolment in active_enrolments %}
+              <li class="course-card">
+                <div class="course-card-topline">
+                  <span class="course-code">{{ enrolment.course.code }}</span>
+                  {% include "includes/status_badge.html" with status="ACTIVE" label="Enrolled" %}
+                </div>
+                <h3><a href="{% url 'courses:detail' enrolment.course.id %}">{{ enrolment.course.title }}</a></h3>
+                <p>{{ enrolment.course.description|truncatewords:24 }}</p>
+                <a class="card-link" href="{% url 'courses:detail' enrolment.course.id %}">Open course <span aria-hidden="true">→</span></a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {% url 'courses:list' as catalogue_url %}
+          {% include "includes/empty_state.html" with empty_title="No enrolled courses" empty_message="Browse the catalogue to find published courses that are open for enrolment." empty_url=catalogue_url empty_action="Browse course catalogue" %}
+        {% endif %}
+        {% if has_more_enrolments %}<p><a href="{% url 'courses:list' %}">Browse the full course list</a></p>{% endif %}
+      </section>
 
-    <section aria-labelledby="upcoming-work">
-      <h2 id="upcoming-work">Upcoming deadlines</h2>
-      {% if upcoming_assignments %}
-        <ul class="card-list">
-          {% for assignment in upcoming_assignments %}
-            <li>
-              <h3><a href="{% url 'assignments:detail' assignment.course_id assignment.id %}">{{ assignment.title }}</a></h3>
-              <p>{{ assignment.course.code }}</p>
-              <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }} · Due in {{ assignment.due_at|timeuntil:now }}</p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">No upcoming published assignments are available in your enrolled courses.</p>
-      {% endif %}
-    </section>
+      <section class="dashboard-section" aria-labelledby="upcoming-work">
+        <div class="section-heading"><div><p class="eyebrow">Plan ahead</p><h2 id="upcoming-work">Upcoming deadlines</h2></div></div>
+        {% if upcoming_assignments %}
+          <ol class="compact-list">
+            {% for assignment in upcoming_assignments %}
+              <li>
+                <time datetime="{{ assignment.due_at|date:'c' }}"><strong>{{ assignment.due_at|date:"M j" }}</strong><span>{{ assignment.due_at|date:"g:i A" }} MYT</span></time>
+                <div>
+                  <h3><a href="{% url 'assignments:detail' assignment.course_id assignment.id %}">{{ assignment.title }}</a></h3>
+                  <p>{{ assignment.course.code }} · Due in {{ assignment.due_at|timeuntil:now }}</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          {% include "includes/empty_state.html" with show_image=False empty_message="No upcoming published assignments are available in your enrolled courses." %}
+        {% endif %}
+      </section>
 
-    <section aria-labelledby="submission-states">
-      <h2 id="submission-states">Submission states</h2>
-      {% if submission_rows %}
-        <ul class="card-list">
-          {% for row in submission_rows %}
-            <li>
-              <p class="eyebrow">{{ row.status }}</p>
-              <h3><a href="{% url 'assignments:detail' row.assignment.course_id row.assignment.id %}">{{ row.assignment.title }}</a></h3>
-              <p>{{ row.assignment.course.code }} · Due {{ row.assignment.due_at|date:"M j, Y, g:i A T" }}</p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">No submission states are available.</p>
-      {% endif %}
-    </section>
+      <section class="dashboard-section" aria-labelledby="submission-states">
+        <div class="section-heading"><div><p class="eyebrow">Coursework</p><h2 id="submission-states">Submission states</h2></div></div>
+        {% if submission_rows %}
+          <ul class="compact-list">
+            {% for row in submission_rows %}
+              <li>
+                {% include "includes/status_badge.html" with status=row.status %}
+                <div>
+                  <h3><a href="{% url 'assignments:detail' row.assignment.course_id row.assignment.id %}">{{ row.assignment.title }}</a></h3>
+                  <p>{{ row.assignment.course.code }} · Due {{ row.assignment.due_at|date:"M j, Y, g:i A" }} MYT</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {% include "includes/empty_state.html" with show_image=False empty_message="No submission states are available." %}
+        {% endif %}
+      </section>
 
-    <section aria-labelledby="recent-announcements">
-      <h2 id="recent-announcements">Recent announcements</h2>
-      <p>{{ unread_announcement_count }} unread announcement{{ unread_announcement_count|pluralize }}.</p>
-      {% if recent_announcements %}
-        <ol class="card-list">
-          {% for announcement in recent_announcements %}
-            <li>
-              <p class="eyebrow">{{ announcement.course.code }} · {% if announcement.is_read %}Read{% else %}Unread{% endif %}</p>
-              <h3><a href="{% url 'announcements:detail' announcement.course_id announcement.id %}">{{ announcement.title }}</a></h3>
-              <p>{{ announcement.published_at|date:"M j, Y, g:i A T" }}</p>
-            </li>
-          {% endfor %}
-        </ol>
-      {% else %}
-        <p class="empty-state">No course announcements are available.</p>
-      {% endif %}
-    </section>
+      <section class="dashboard-section" aria-labelledby="recent-announcements">
+        <div class="section-heading">
+          <div><p class="eyebrow">{{ unread_announcement_count }} unread</p><h2 id="recent-announcements">Recent announcements</h2></div>
+        </div>
+        {% if recent_announcements %}
+          <ol class="compact-list">
+            {% for announcement in recent_announcements %}
+              <li>
+                {% if announcement.is_read %}
+                  {% include "includes/status_badge.html" with status="READ" %}
+                {% else %}
+                  {% include "includes/status_badge.html" with status="UNREAD" %}
+                {% endif %}
+                <div>
+                  <h3><a href="{% url 'announcements:detail' announcement.course_id announcement.id %}">{{ announcement.title }}</a></h3>
+                  <p>{{ announcement.course.code }} · {{ announcement.published_at|date:"M j, Y, g:i A" }} MYT</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          {% include "includes/empty_state.html" with show_image=False empty_message="No course announcements are available." %}
+        {% endif %}
+      </section>
 
-    <section aria-labelledby="released-grades">
-      <h2 id="released-grades">Released grades</h2>
-      {% if released_grades %}
-        <ul class="card-list">
-          {% for grade in released_grades %}
-            <li>
-              <h3>{{ grade.submission.assignment.title }}</h3>
-              <p>{{ grade.submission.assignment.course.code }} · {{ grade.score }} / {{ grade.submission.assignment.max_score }}</p>
-              <p>Released {{ grade.released_at|date:"M j, Y, g:i A T" }}</p>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p class="empty-state">No grades have been released to you.</p>
-      {% endif %}
-    </section>
+      <section class="dashboard-section" aria-labelledby="released-grades">
+        <div class="section-heading"><div><p class="eyebrow">Feedback</p><h2 id="released-grades">Released grades</h2></div></div>
+        {% if released_grades %}
+          <ul class="compact-list">
+            {% for grade in released_grades %}
+              <li>
+                <span class="grade-score">{{ grade.score }} / {{ grade.submission.assignment.max_score }}</span>
+                <div>
+                  <h3><a href="{% url 'assignments:detail' grade.submission.assignment.course_id grade.submission.assignment.id %}">{{ grade.submission.assignment.title }}</a></h3>
+                  <p>{{ grade.submission.assignment.course.code }} · Released {{ grade.released_at|date:"M j, Y, g:i A" }} MYT</p>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          {% include "includes/empty_state.html" with show_image=False empty_message="No grades have been released to you." %}
+        {% endif %}
+      </section>
+    </div>
   {% else %}
-    <section aria-labelledby="teaching-summary">
-      <h2 id="teaching-summary">Teaching summary</h2>
+    <section class="dashboard-section" aria-labelledby="teaching-summary">
+      <div class="section-heading"><div><p class="eyebrow">At a glance</p><h2 id="teaching-summary">Teaching summary</h2></div></div>
       <dl class="metric-grid">
         <div><dt>Active enrolments</dt><dd>{{ dashboard_totals.active_enrolments|default:0 }}</dd></div>
         <div><dt>Needs grading</dt><dd>{{ dashboard_totals.needs_grading|default:0 }}</dd></div>
@@ -107,24 +135,41 @@
         <div><dt>Missing submissions</dt><dd>{{ dashboard_totals.missing|default:0 }}</dd></div>
         <div><dt>Recently inactive</dt><dd>{{ dashboard_totals.inactive|default:0 }}</dd></div>
       </dl>
-      <p>Recently inactive means no recorded platform activity in the last {{ inactive_days }} days; it is not a measure of physical attendance.</p>
+      <p class="context-note">Recently inactive means no recorded platform activity in the last {{ inactive_days }} days; it is not a measure of physical attendance.</p>
     </section>
 
-    <section aria-labelledby="owned-courses">
-      <h2 id="owned-courses">Owned courses</h2>
+    <section class="dashboard-section instructor-course-section" aria-labelledby="owned-courses">
+      <div class="section-heading">
+        <div><p class="eyebrow">Teaching workspace</p><h2 id="owned-courses">Owned courses</h2></div>
+        <a class="button" href="{% url 'courses:new' %}">Create course</a>
+      </div>
       {% if course_rows %}
-        <ul class="card-list">
+        <ul class="card-list course-card-grid">
           {% for row in course_rows %}
-            <li>
-              <h3><a href="{% url 'courses:detail' row.course.id %}">{{ row.course.code }} — {{ row.course.title }}</a></h3>
-              <p>{{ row.course.active_enrolment_count }} active enrolment{{ row.course.active_enrolment_count|pluralize }} · {{ row.course.needs_grading_count }} submission{{ row.course.needs_grading_count|pluralize }} needing grading</p>
-              <p>{{ row.late_count }} late · {{ row.missing_count }} missing · {{ row.inactive_count }} recently inactive</p>
-              <p><a href="{% url 'analytics:course' row.course.id %}">Open platform participation analytics</a></p>
+            <li class="course-card">
+              <div class="course-card-topline">
+                <span class="course-code">{{ row.course.code }}</span>
+                {% include "includes/status_badge.html" with status=row.course.status %}
+              </div>
+              <h3><a href="{% url 'courses:detail' row.course.id %}">{{ row.course.title }}</a></h3>
+              <dl class="mini-metrics">
+                <div><dt>Active enrolments</dt><dd>{{ row.course.active_enrolment_count }}</dd></div>
+                <div><dt>Needs grading</dt><dd>{{ row.course.needs_grading_count }}</dd></div>
+                <div><dt>Late</dt><dd>{{ row.late_count }}</dd></div>
+                <div><dt>Missing</dt><dd>{{ row.missing_count }}</dd></div>
+                <div><dt>Recently inactive</dt><dd>{{ row.inactive_count }}</dd></div>
+              </dl>
+              <p class="visually-hidden">{{ row.course.active_enrolment_count }} active enrolments · {{ row.missing_count }} missing · {{ row.late_count }} late · {{ row.inactive_count }} recently inactive</p>
+              <div class="card-actions">
+                <a href="{% url 'courses:detail' row.course.id %}">Open course</a>
+                <a href="{% url 'analytics:course' row.course.id %}">Platform participation</a>
+              </div>
             </li>
           {% endfor %}
         </ul>
       {% else %}
-        <p class="empty-state">You do not own any courses yet.</p>
+        {% url 'courses:new' as new_course_url %}
+        {% include "includes/empty_state.html" with empty_title="No courses yet" empty_message="Create a draft course, add its sections, then publish it when the structure is ready." empty_url=new_course_url empty_action="Create your first course" %}
       {% endif %}
       {% if has_more_owned_courses %}<p><a href="{% url 'courses:list' %}">View all owned courses</a></p>{% endif %}
     </section>
