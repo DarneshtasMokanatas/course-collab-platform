@@ -1,58 +1,94 @@
 {% extends "base.html" %}
 {% block title %}{{ assignment.title }} | {{ assignment.course.code }}{% endblock %}
+{% block breadcrumbs %}{% url 'assignments:list' assignment.course_id as parent_url %}{% include "includes/breadcrumbs.html" with course=assignment.course parent_url=parent_url parent_label="Assignments" current_label=assignment.title %}{% endblock %}
 {% block content %}
-<section class="hero">
-  <p class="eyebrow">{{ assignment.course.code }} · {{ assignment.get_status_display }}</p>
-  <h1>{{ assignment.title }}</h1>
-  <p>{{ assignment.instructions|linebreaksbr }}</p>
-  <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}{% if assignment.due_at > now %} · Due in {{ assignment.due_at|timeuntil:now }}{% else %} · Due {{ assignment.due_at|timesince:now }} ago{% endif %}</p>
-  <p>Max score: {{ assignment.max_score }} · Allowed files: {{ assignment.allowed_extensions|join:", " }}</p>
-  <div class="form-actions">
-    <a class="button-link" href="{% url 'assignments:list' assignment.course_id %}">Back to assignments</a>
-    {% if owner and assignment.status == 'DRAFT' %}
-      <form method="post" action="{% url 'assignments:publish' assignment.course_id assignment.id %}">
-        {% csrf_token %}
-        <button type="submit">Publish assignment</button>
-      </form>
-    {% endif %}
-    {% if not owner and not student_submission %}
-      <a class="button-link" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit work</a>
-    {% elif not owner and can_resubmit %}
-      <a class="button-link" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit a new version</a>
-    {% endif %}
-  </div>
-</section>
-{% if owner %}
-  <section>
-    <h2>Submission summary</h2>
-    <p>{{ submission_count }} student submission{{ submission_count|pluralize }} received.</p>
-    <p><a class="button-link" href="{% url 'assignments:submission_list' assignment.course_id assignment.id %}">Review submission history</a></p>
-  </section>
-{% else %}
-  <section>
-    <h2>Your submission</h2>
-    {% if student_submission %}
-      <ol class="card-list">
-        {% for version in student_submission.versions.all %}
-          <li>
-            <h3>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</h3>
-            <p>Received {{ version.submitted_at|date:"M j, Y, g:i A T" }}{% if version.was_late %} · Late{% else %} · On time{% endif %}</p>
-            <p>{{ version.original_filename }} · {{ version.size_bytes }} bytes</p>
-            <p><a href="{% url 'assignments:submission_version_download' assignment.course_id assignment.id student_submission.id version.id %}">Download version {{ version.version_number }}</a></p>
-          </li>
-        {% endfor %}
-      </ol>
-      <h3>Released grade</h3>
-      {% if latest_released_grade %}
-        <p>{{ latest_released_grade.score }} / {{ assignment.max_score }}, based on submission version {{ latest_released_grade.submission_version.version_number }}.</p>
-        {% if latest_released_grade.feedback %}<p>{{ latest_released_grade.feedback|linebreaksbr }}</p>{% endif %}
-        <p>Released {{ latest_released_grade.released_at|date:"M j, Y, g:i A T" }}.</p>
+  <header class="assignment-hero">
+    <div class="assignment-hero-copy">
+      <div class="badge-group">
+        {% include "includes/status_badge.html" with status=assignment.status %}
+        {% if assignment.section %}<span class="meta-chip">{{ assignment.section.title }}</span>{% endif %}
+      </div>
+      <p class="eyebrow">{{ assignment.course.code }} assignment</p>
+      <h1>{{ assignment.title }}</h1>
+      <div class="prose">{{ assignment.instructions|linebreaks }}</div>
+      <div class="page-actions">
+        <a class="button button-secondary" href="{% url 'assignments:list' assignment.course_id %}">Back to assignments</a>
+        {% if owner and assignment.status == "DRAFT" %}
+          <form method="post" action="{% url 'assignments:publish' assignment.course_id assignment.id %}" data-confirm="Publish this assignment to enrolled students?">
+            {% csrf_token %}<button type="submit">Publish assignment</button>
+          </form>
+        {% endif %}
+        {% if not owner and not student_submission and assignment.due_at < now and not assignment.allow_late_submissions %}
+          <span class="status-badge status-closed"><span class="status-icon" aria-hidden="true">—</span>Submission deadline closed</span>
+        {% elif not owner and not student_submission %}
+          <a class="button" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit work</a>
+        {% elif not owner and can_resubmit %}
+          <a class="button" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit a new version</a>
+        {% endif %}
+      </div>
+    </div>
+    <aside class="assignment-rules" aria-label="Assignment rules">
+      <div class="deadline-callout {% if assignment.due_at <= now %}is-past{% endif %}">
+        <span>{% if assignment.due_at > now %}Due{% else %}Deadline passed{% endif %}</span>
+        <strong>{{ assignment.due_at|date:"M j, Y" }}</strong>
+        <span>{{ assignment.due_at|date:"g:i A" }} MYT</span>
+        <small>{% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</small>
+      </div>
+      <dl>
+        <div><dt>Maximum score</dt><dd>{{ assignment.max_score }}</dd></div>
+        <div><dt>Allowed files</dt><dd>{{ assignment.allowed_extensions|join:", " }}</dd></div>
+        <div><dt>Maximum upload</dt><dd>{{ assignment.max_upload_bytes|filesizeformat }}</dd></div>
+        <div><dt>Late first submissions</dt><dd>{% if assignment.allow_late_submissions %}Accepted{% else %}Not accepted{% endif %}</dd></div>
+        <div><dt>Resubmission</dt><dd>{% if assignment.allow_resubmission %}Enabled before deadline{% else %}Not enabled{% endif %}</dd></div>
+      </dl>
+    </aside>
+  </header>
+
+  {% if owner %}
+    <section class="surface content-panel">
+      <div class="section-heading">
+        <div><p class="eyebrow">Assessment workflow</p><h2>Submission summary</h2></div>
+        <a class="button" href="{% url 'assignments:submission_list' assignment.course_id assignment.id %}">Review submissions</a>
+      </div>
+      <p><strong>{{ submission_count }}</strong> student submission{{ submission_count|pluralize }} received. The review list also shows enrolled students whose work is missing.</p>
+    </section>
+  {% else %}
+    <section class="surface content-panel">
+      <div class="section-heading"><div><p class="eyebrow">Your coursework</p><h2>Your submission</h2></div></div>
+      {% if student_submission %}
+        <ol class="version-list submission-versions">
+          {% for version in student_submission.versions.all %}
+            <li>
+              <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
+              <div>
+                <div class="badge-group">
+                  <strong>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</strong>
+                  {% if forloop.last %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
+                  {% if version.was_late %}{% include "includes/status_badge.html" with status="LATE" %}{% else %}{% include "includes/status_badge.html" with status="ON_TIME" %}{% endif %}
+                </div>
+                <p>{{ version.original_filename }} · {{ version.size_bytes|filesizeformat }}</p>
+                <p>Server received {{ version.submitted_at|date:"M j, Y, g:i A" }} MYT</p>
+              </div>
+              <a class="button button-secondary" href="{% url 'assignments:submission_version_download' assignment.course_id assignment.id student_submission.id version.id %}">Download</a>
+            </li>
+          {% endfor %}
+        </ol>
+        <div class="grade-panel">
+          <p class="eyebrow">Released grade</p>
+          {% if latest_released_grade %}
+            <div class="grade-result">
+              <strong>{{ latest_released_grade.score }} / {{ assignment.max_score }}</strong>
+              <span>Based on submission version {{ latest_released_grade.submission_version.version_number }}</span>
+            </div>
+            {% if latest_released_grade.feedback %}<div class="prose">{{ latest_released_grade.feedback|linebreaks }}</div>{% endif %}
+            <p class="context-note">Released {{ latest_released_grade.released_at|date:"M j, Y, g:i A" }} MYT.</p>
+          {% else %}
+            <p class="context-note">No grade has been released.</p>
+          {% endif %}
+        </div>
       {% else %}
-        <p class="empty-state">No grade has been released.</p>
+        {% include "includes/empty_state.html" with empty_title="No submission received" empty_message="Upload your work before the deadline. The server records the accepted submission time." %}
       {% endif %}
-    {% else %}
-      <p class="empty-state">No submission has been received yet.</p>
-    {% endif %}
-  </section>
-{% endif %}
+    </section>
+  {% endif %}
 {% endblock %}

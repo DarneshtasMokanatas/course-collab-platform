@@ -1,22 +1,27 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Platform activity | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course current_label="Platform activity" %}{% endblock %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">{{ course.code }} · Instructor analytics</p>
-    <h1>Platform participation</h1>
-    <p>This page reports activity inside the course workspace. It does not measure physical attendance.</p>
-    <p><a href="{% url 'courses:detail' course.id %}">Back to course</a></p>
-  </section>
+  <header class="analytics-hero">
+    <div>
+      <p class="eyebrow">{{ course.code }} · Instructor analytics</p>
+      <h1>Platform participation</h1>
+      <p class="lede">This page reports activity inside the course workspace. It does not measure physical attendance.</p>
+    </div>
+    <img src="{% static 'images/generated/instructor-progress.webp' %}" width="800" height="600" alt="An instructor reviewing coursework and student progress.">
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="analytics" %}
 
-  <section aria-labelledby="analytics-summary">
-    <h2 id="analytics-summary">Course summary</h2>
+  <section class="dashboard-section" aria-labelledby="analytics-summary">
+    <div class="section-heading"><div><p class="eyebrow">Course overview</p><h2 id="analytics-summary">Course summary</h2></div></div>
     <dl class="metric-grid">
       <div><dt>Active enrolments</dt><dd>{{ active_enrolment_count }}</dd></div>
       <div><dt>Tracked assignments</dt><dd>{{ assignment_count }}</dd></div>
       <div><dt>Inactive students</dt><dd>{{ inactive_student_count }}</dd></div>
     </dl>
-    <form method="get" class="inline-filter">
-      <label for="inactive-days">Inactive after</label>
+    <form method="get" class="inline-filter surface">
+      <label for="inactive-days"><strong>Inactive after</strong></label>
       <input id="inactive-days" name="inactive_days" type="number" min="1" max="365" value="{{ inactive_days }}">
       <span>days without recorded platform activity</span>
       <button type="submit">Apply</button>
@@ -24,10 +29,11 @@
   </section>
 
   <section aria-labelledby="student-participation">
-    <h2 id="student-participation">Student participation</h2>
+    <div class="section-heading"><div><p class="eyebrow">Student overview</p><h2 id="student-participation">Student participation</h2></div></div>
     {% if rows %}
-      <div class="table-scroll" tabindex="0" role="region" aria-label="Student participation table">
+      <div class="table-scroll responsive-table" tabindex="0" role="region" aria-label="Student participation table">
         <table>
+          <caption>Course workspace activity and assignment outcomes for active enrolments.</caption>
           <thead>
             <tr>
               <th scope="col">Student</th>
@@ -42,20 +48,20 @@
           <tbody>
             {% for row in rows %}
               <tr>
-                <th scope="row">{{ row.student.display_name }}</th>
-                <td>
+                <th scope="row" data-label="Student">{{ row.student.display_name }}</th>
+                <td data-label="Latest platform activity">
                   {% if row.latest_activity %}
-                    {{ row.latest_activity|date:"M j, Y, g:i A T" }}
-                    {% if row.is_inactive %}<strong> · Inactive</strong>{% endif %}
+                    {{ row.latest_activity|date:"M j, Y, g:i A" }} MYT
+                    {% if row.is_inactive %}{% include "includes/status_badge.html" with status="INACTIVE" %}{% endif %}
                   {% else %}
-                    No recorded activity · <strong>Inactive</strong>
+                    No recorded activity {% include "includes/status_badge.html" with status="INACTIVE" %}
                   {% endif %}
                 </td>
-                <td>{{ row.submitted }}</td>
-                <td>{{ row.missing }}</td>
-                <td>{{ row.late }}</td>
-                <td>{{ row.graded }}</td>
-                <td>
+                <td data-label="Submitted">{{ row.submitted }}</td>
+                <td data-label="Missing">{{ row.missing }}</td>
+                <td data-label="Late">{{ row.late }}</td>
+                <td data-label="Graded">{{ row.graded }}</td>
+                <td data-label="Released results">
                   {% if row.released_average is not None %}
                     Total {{ row.released_total }} · Average {{ row.released_average|floatformat:2 }}
                   {% else %}
@@ -67,15 +73,11 @@
           </tbody>
         </table>
       </div>
-      {% if page.has_other_pages %}
-        <nav class="pagination" aria-label="Analytics pages">
-          {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&amp;inactive_days={{ inactive_days }}">Previous</a>{% endif %}
-          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-          {% if page.has_next %}<a href="?page={{ page.next_page_number }}&amp;inactive_days={{ inactive_days }}">Next</a>{% endif %}
-        </nav>
-      {% endif %}
+      {% with inactive_days|stringformat:"s" as inactive_days_value %}
+        {% include "includes/pagination.html" with page=page pagination_label="Analytics pages" query_suffix="inactive_days="|add:inactive_days_value %}
+      {% endwith %}
     {% else %}
-      <p class="empty-state">No active students are enrolled in this course.</p>
+      {% include "includes/empty_state.html" with empty_title="No active enrolments" empty_message="Participation summaries will appear when students are actively enrolled in this course." %}
     {% endif %}
   </section>
 {% endblock %}

@@ -1,37 +1,32 @@
 {% extends "base.html" %}
 {% block title %}Submissions | {{ assignment.title }}{% endblock %}
+{% block breadcrumbs %}{% url 'assignments:detail' course.id assignment.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label=assignment.title current_label="Submissions" %}{% endblock %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">{{ course.code }}</p>
-    <h1>Submissions — {{ assignment.title }}</h1>
-    <p><a class="button-link" href="{% url 'assignments:detail' course.id assignment.id %}">Back to assignment</a></p>
-  </section>
-  <section>
-    {% if rows %}
-      <ol class="card-list">
-        {% for row in rows %}
-          <li>
-            <p class="eyebrow">{{ row.status }}</p>
+  <header class="page-header">
+    <div class="page-header-copy"><p class="eyebrow">{{ course.code }} · Assessment review</p><h1>Submissions — {{ assignment.title }}</h1><p class="lede">Review current status and retained version history for every actively enrolled student.</p></div>
+    <div class="page-actions"><a class="button button-secondary" href="{% url 'assignments:detail' course.id assignment.id %}">Back to assignment</a></div>
+  </header>
+  {% if rows %}
+    <ol class="card-list submission-roster">
+      {% for row in rows %}
+        <li>
+          <div>
+            {% include "includes/status_badge.html" with status=row.status %}
             {% if row.submission %}
               <h2><a href="{% url 'assignments:submission_detail' course.id assignment.id row.submission.id %}">{{ row.student.display_name }}</a></h2>
               <p>{{ row.submission.ordered_versions|length }} version{{ row.submission.ordered_versions|length|pluralize }} retained.</p>
-              <p>Current: version {{ row.latest_version.version_number }}, received {{ row.latest_version.submitted_at|date:"M j, Y, g:i A T" }}{% if row.latest_version.was_late %} · Late{% else %} · On time{% endif %}</p>
+              <p>Current: version {{ row.latest_version.version_number }}, received {{ row.latest_version.submitted_at|date:"M j, Y, g:i A" }} MYT{% if row.latest_version.was_late %} · Late{% else %} · On time{% endif %}</p>
             {% else %}
               <h2>{{ row.student.display_name }}</h2>
               <p>No submission has been received.</p>
             {% endif %}
-          </li>
-        {% endfor %}
-      </ol>
-      {% if page.has_other_pages %}
-        <nav aria-label="Submission pages">
-          {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
-          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-          {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
-        </nav>
-      {% endif %}
-    {% else %}
-      <p class="empty-state">No submissions have been received.</p>
-    {% endif %}
-  </section>
+          </div>
+          {% if row.submission %}<a class="button button-secondary" href="{% url 'assignments:submission_detail' course.id assignment.id row.submission.id %}">Review work</a>{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+    {% include "includes/pagination.html" with pagination_label="Submission pages" %}
+  {% else %}
+    {% include "includes/empty_state.html" with empty_title="No enrolled students" empty_message="Submission status will appear here after students are actively enrolled in this course." %}
+  {% endif %}
 {% endblock %}

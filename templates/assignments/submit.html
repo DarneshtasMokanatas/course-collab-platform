@@ -1,22 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{% if is_resubmission %}Resubmit{% else %}Submit{% endif %} {{ assignment.title }}{% endblock %}
+{% block breadcrumbs %}{% url 'assignments:detail' assignment.course_id assignment.id as parent_url %}{% include "includes/breadcrumbs.html" with course=assignment.course parent_url=parent_url parent_label=assignment.title current_label="Upload work" %}{% endblock %}
 {% block content %}
-<section class="hero">
-  <p class="eyebrow">{{ assignment.course.code }}</p>
-  <h1>{% if is_resubmission %}Submit a new version{% else %}Submit{% endif %} {{ assignment.title }}</h1>
-  <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }} · {% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}. The server records the submission time when the upload is accepted.</p>
-  {% if is_resubmission %}
-    <p>Your earlier versions will remain available. This upload becomes the current version.</p>
-  {% endif %}
-</section>
-<section>
-  <form method="post" enctype="multipart/form-data" novalidate>
-    {% csrf_token %}
-    {% include "includes/form_fields.html" %}
-    <div class="form-actions">
-      <button type="submit">{% if is_resubmission %}Upload new version{% else %}Submit work{% endif %}</button>
-      <a class="button-link" href="{% url 'assignments:detail' assignment.course_id assignment.id %}">Cancel</a>
-    </div>
-  </form>
-</section>
+  <div class="submit-layout">
+    <section class="form-card">
+      <header>
+        <p class="eyebrow">{{ assignment.course.code }} · Submission</p>
+        <h1>{% if is_resubmission %}Submit a new version{% else %}Submit{% endif %} {{ assignment.title }}</h1>
+        <p class="lede">The server records the authoritative submission time only after the upload is accepted.</p>
+      </header>
+      <form method="post" enctype="multipart/form-data" novalidate data-loading>
+        {% csrf_token %}
+        {% include "includes/form_fields.html" %}
+        <div class="form-actions">
+          <button type="submit" data-loading-text="Uploading…">{% if is_resubmission %}Upload new version{% else %}Submit work{% endif %}</button>
+          <a class="button button-secondary" href="{% url 'assignments:detail' assignment.course_id assignment.id %}">Cancel</a>
+        </div>
+      </form>
+    </section>
+    <aside class="surface submission-guidance">
+      <p class="eyebrow">Before you upload</p>
+      <h2>Submission rules</h2>
+      <dl class="rule-list">
+        <div><dt>Deadline</dt><dd>{{ assignment.due_at|date:"M j, Y, g:i A" }} MYT · {% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</dd></div>
+        <div><dt>Allowed files</dt><dd>{{ assignment.allowed_extensions|join:", " }}</dd></div>
+        <div><dt>Maximum size</dt><dd>{{ assignment.max_upload_bytes|filesizeformat }}</dd></div>
+      </dl>
+      {% if is_resubmission %}<p>Your earlier versions remain available. This upload becomes the current version.</p>{% endif %}
+    </aside>
+  </div>
 {% endblock %}

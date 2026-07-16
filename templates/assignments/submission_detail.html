@@ -1,61 +1,73 @@
 {% extends "base.html" %}
 {% block title %}{{ submission.student.display_name }} | {{ assignment.title }}{% endblock %}
+{% block breadcrumbs %}{% url 'assignments:submission_list' course.id assignment.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label="Submissions" current_label=submission.student.display_name %}{% endblock %}
 {% block content %}
-  <section class="hero">
-    <p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p>
-    <h1>{{ submission.student.display_name }}</h1>
-    <p>First submitted {{ submission.created_at|date:"M j, Y, g:i A T" }}</p>
-    <div class="form-actions">
-      <a class="button-link" href="{% url 'assignments:submission_list' course.id assignment.id %}">Back to submissions</a>
-      <a class="button-link" href="{% url 'assignments:grade' course.id assignment.id submission.id %}">Create grade revision</a>
+  <header class="page-header">
+    <div class="page-header-copy"><p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p><h1>{{ submission.student.display_name }}</h1><p class="lede">First submitted {{ submission.created_at|date:"M j, Y, g:i A" }} MYT. Review any retained version before creating a grade revision.</p></div>
+    <div class="page-actions">
+      <a class="button button-secondary" href="{% url 'assignments:submission_list' course.id assignment.id %}">Back to submissions</a>
+      <a class="button" href="{% url 'assignments:grade' course.id assignment.id submission.id %}">Create grade revision</a>
     </div>
-  </section>
-  <section>
-    <h2>Version history</h2>
-    <ol class="card-list">
-      {% for version in submission.ordered_versions %}
-        <li>
-          <h3>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</h3>
-          <p>Received {{ version.submitted_at|date:"M j, Y, g:i A T" }}{% if version.was_late %} · Late{% else %} · On time{% endif %}</p>
-          <p>{{ version.original_filename }} · {{ version.size_bytes }} bytes</p>
-          <p><a href="{% url 'assignments:submission_version_download' course.id assignment.id submission.id version.id %}">Download version {{ version.version_number }}</a></p>
-        </li>
-      {% empty %}
-        <li class="empty-state">No submission versions are available.</li>
-      {% endfor %}
-    </ol>
-  </section>
-  <section>
-    <h2>Grade revisions</h2>
-    {% if submission.ordered_grade_revisions %}
-      <ol class="card-list">
-        {% for revision in submission.ordered_grade_revisions reversed %}
+  </header>
+  <div class="review-grid">
+    <section class="surface content-panel">
+      <p class="eyebrow">Immutable files</p>
+      <h2>Version history</h2>
+      <ol class="version-list submission-versions">
+        {% for version in submission.ordered_versions %}
           <li>
-            <p class="eyebrow">Revision {{ revision.revision_number }} · {% if revision.released_at %}Released{% else %}Draft{% endif %}</p>
-            <h3>{{ revision.score }} / {{ assignment.max_score }}</h3>
-            <p>Based on submission version {{ revision.submission_version.version_number }}.</p>
-            {% if revision.feedback %}<p>{{ revision.feedback|linebreaksbr }}</p>{% endif %}
-            <p>Recorded {{ revision.created_at|date:"M j, Y, g:i A T" }} by {{ revision.graded_by.display_name }}.</p>
-            {% if revision.released_at %}<p>Released {{ revision.released_at|date:"M j, Y, g:i A T" }}.</p>{% endif %}
+            <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
+            <div>
+              <div class="badge-group">
+                <strong>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</strong>
+                {% if forloop.last %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
+                {% if version.was_late %}{% include "includes/status_badge.html" with status="LATE" %}{% else %}{% include "includes/status_badge.html" with status="ON_TIME" %}{% endif %}
+              </div>
+              <p>{{ version.original_filename }} · {{ version.size_bytes|filesizeformat }}</p>
+              <p>Server received {{ version.submitted_at|date:"M j, Y, g:i A" }} MYT</p>
+            </div>
+            <a class="button button-secondary" href="{% url 'assignments:submission_version_download' course.id assignment.id submission.id version.id %}">Download</a>
           </li>
+        {% empty %}
+          <li>{% include "includes/empty_state.html" with show_image=False empty_message="No submission versions are available." %}</li>
         {% endfor %}
       </ol>
-      <div class="form-actions">
-        {% if not latest_revision.released_at %}
-          <form method="post" action="{% url 'assignments:release_grade' course.id assignment.id submission.id %}" onsubmit="return confirm('Release the latest grade revision to this student?');">
-            {% csrf_token %}
-            <button type="submit">Release latest grade</button>
-          </form>
-        {% endif %}
-        {% if has_released_grade %}
-          <form method="post" action="{% url 'assignments:withdraw_grade' course.id assignment.id submission.id %}" onsubmit="return confirm('Withdraw the latest released grade?');">
-            {% csrf_token %}
-            <button type="submit">Withdraw latest release</button>
-          </form>
-        {% endif %}
-      </div>
-    {% else %}
-      <p class="empty-state">No grade revision has been recorded.</p>
-    {% endif %}
-  </section>
+    </section>
+    <section class="surface content-panel">
+      <div class="section-heading"><div><p class="eyebrow">Append-only assessment</p><h2>Grade revisions</h2></div></div>
+      {% if submission.ordered_grade_revisions %}
+        <ol class="grade-timeline">
+          {% for revision in submission.ordered_grade_revisions reversed %}
+            <li>
+              <div class="grade-timeline-marker" aria-hidden="true">{{ revision.revision_number }}</div>
+              <div>
+                <div class="badge-group">
+                  <strong>Revision {{ revision.revision_number }}</strong>
+                  {% if revision.released_at %}{% include "includes/status_badge.html" with status="RELEASED" %}{% else %}{% include "includes/status_badge.html" with status="DRAFT" label="Private draft" %}{% endif %}
+                </div>
+                <p class="grade-value">{{ revision.score }} / {{ assignment.max_score }}</p>
+                <p>Based on submission version {{ revision.submission_version.version_number }}.</p>
+                {% if revision.feedback %}<div class="prose">{{ revision.feedback|linebreaks }}</div>{% endif %}
+                <p class="context-note">Recorded {{ revision.created_at|date:"M j, Y, g:i A" }} MYT by {{ revision.graded_by.display_name }}{% if revision.released_at %} · Released {{ revision.released_at|date:"M j, Y, g:i A" }} MYT{% endif %}</p>
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
+        <div class="form-actions">
+          {% if not latest_revision.released_at %}
+            <form method="post" action="{% url 'assignments:release_grade' course.id assignment.id submission.id %}" data-confirm="Release the latest grade revision to this student?">
+              {% csrf_token %}<button type="submit">Release latest grade</button>
+            </form>
+          {% endif %}
+          {% if has_released_grade %}
+            <form method="post" action="{% url 'assignments:withdraw_grade' course.id assignment.id submission.id %}" data-confirm="Withdraw the latest released grade? The student will no longer see it." data-confirm-tone="danger">
+              {% csrf_token %}<button class="button-danger" type="submit">Withdraw latest release</button>
+            </form>
+          {% endif %}
+        </div>
+      {% else %}
+        {% include "includes/empty_state.html" with show_image=False empty_message="No grade revision has been recorded." %}
+      {% endif %}
+    </section>
+  </div>
 {% endblock %}

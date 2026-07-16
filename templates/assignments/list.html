@@ -1,30 +1,50 @@
 {% extends "base.html" %}
 {% block title %}Assignments | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course current_label="Assignments" %}{% endblock %}
 {% block content %}
-<section class="hero">
-  <p class="eyebrow">{{ course.code }}</p>
-  <h1>Assignments</h1>
-  <p>Deadlines and submission requirements for {{ course.title }}.</p>
-  <div class="form-actions">
-    <a class="button-link" href="{% url 'courses:detail' course.id %}">Back to course</a>
-    {% if owner %}<a class="button-link" href="{% url 'assignments:new' course.id %}">New assignment</a>{% endif %}
-  </div>
-</section>
-<section>
+  <header class="page-header">
+    <div class="page-header-copy">
+      <p class="eyebrow">{{ course.code }}</p>
+      <h1>Assignments</h1>
+      <p class="lede">Deadlines, submission rules, and assessment requirements for {{ course.title }}.</p>
+    </div>
+    {% if owner %}<div class="page-actions"><a class="button" href="{% url 'assignments:new' course.id %}">New assignment</a></div>{% endif %}
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="assignments" %}
   {% if page.object_list %}
-    <ol class="card-list">
+    <ol class="card-list assignment-list">
       {% for assignment in page.object_list %}
         <li>
-          <p class="eyebrow">{{ assignment.get_status_display }}{% if assignment.section %} · {{ assignment.section.title }}{% endif %}</p>
-          <h2><a href="{% url 'assignments:detail' course.id assignment.id %}">{{ assignment.title }}</a></h2>
-          <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}{% if assignment.due_at > now %} · Due in {{ assignment.due_at|timeuntil:now }}{% else %} · Due {{ assignment.due_at|timesince:now }} ago{% endif %}</p>
-          <p>Allowed files: {{ assignment.allowed_extensions|join:", " }} · Max upload {{ assignment.max_upload_bytes }} bytes</p>
+          <div class="assignment-card-main">
+            <div class="badge-group">
+              {% include "includes/status_badge.html" with status=assignment.status %}
+              {% if assignment.section %}<span class="meta-chip">{{ assignment.section.title }}</span>{% endif %}
+            </div>
+            <h2><a href="{% url 'assignments:detail' course.id assignment.id %}">{{ assignment.title }}</a></h2>
+            <p>{{ assignment.instructions|truncatewords:28 }}</p>
+            <dl class="metadata-grid">
+              <div><dt>Maximum score</dt><dd>{{ assignment.max_score }}</dd></div>
+              <div><dt>Allowed files</dt><dd>{{ assignment.allowed_extensions|join:", " }}</dd></div>
+              <div><dt>Maximum upload</dt><dd>{{ assignment.max_upload_bytes|filesizeformat }}</dd></div>
+            </dl>
+          </div>
+          <aside class="deadline-panel {% if assignment.due_at <= now %}is-past{% endif %}">
+            <span class="deadline-label">{% if assignment.due_at > now %}Due{% else %}Deadline passed{% endif %}</span>
+            <strong>{{ assignment.due_at|date:"M j, Y" }}</strong>
+            <span>{{ assignment.due_at|date:"g:i A" }} MYT</span>
+            <span>{% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</span>
+            <a href="{% url 'assignments:detail' course.id assignment.id %}">View assignment</a>
+          </aside>
         </li>
       {% endfor %}
     </ol>
     {% include "includes/pagination.html" with pagination_label="Assignment pages" %}
   {% else %}
-    <p class="empty-state">No assignments are available yet.</p>
+    {% if owner %}
+      {% url 'assignments:new' course.id as new_assignment_url %}
+      {% include "includes/empty_state.html" with empty_title="No assignments yet" empty_message="Create a draft with its deadline, score, file rules, and submission policy, then publish it separately." empty_url=new_assignment_url empty_action="Create assignment" %}
+    {% else %}
+      {% include "includes/empty_state.html" with empty_title="No assignments available" empty_message="Published coursework will appear here when your instructor adds it." %}
+    {% endif %}
   {% endif %}
-</section>
 {% endblock %}

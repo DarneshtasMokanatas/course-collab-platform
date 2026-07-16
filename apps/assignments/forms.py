@@ -17,7 +17,27 @@ class AssignmentForm(forms.ModelForm):
             "allow_late_submissions",
             "allow_resubmission",
         )
-        widgets = {"due_at": forms.DateTimeInput(attrs={"type": "datetime-local"})}
+        widgets = {
+            "instructions": forms.Textarea(attrs={"rows": 8}),
+            "due_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "allowed_extensions": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[
+            "max_upload_bytes"
+        ].help_text = "Enter the maximum upload size in bytes."
+        self.fields[
+            "allowed_extensions"
+        ].help_text = 'Enter a JSON list such as ["pdf", "docx", "zip"].'
+        self.fields[
+            "allow_late_submissions"
+        ].help_text = "Applies only to a student's first submission after the deadline."
+        self.fields["allow_resubmission"].help_text = (
+            "New versions are accepted only while the server time is "
+            "before the deadline."
+        )
 
     def clean_allowed_extensions(self):
         extensions = self.cleaned_data["allowed_extensions"]
@@ -27,7 +47,9 @@ class AssignmentForm(forms.ModelForm):
 
 
 class SubmissionForm(forms.Form):
-    file = forms.FileField()
+    file = forms.FileField(
+        help_text="Choose one file that matches the assignment rules.",
+    )
 
 
 class GradeRevisionForm(forms.Form):
@@ -42,7 +64,7 @@ class GradeRevisionForm(forms.Form):
     )
     feedback = forms.CharField(
         required=False,
-        widget=forms.Textarea,
+        widget=forms.Textarea(attrs={"rows": 7}),
     )
 
     def __init__(self, *args, submission, **kwargs):

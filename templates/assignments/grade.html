@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Grade {{ submission.student.display_name }} | {{ assignment.title }}{% endblock %}
+{% block breadcrumbs %}{% url 'assignments:submission_detail' course.id assignment.id submission.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label=submission.student.display_name current_label="Create grade revision" %}{% endblock %}
 {% block content %}
   <section class="form-card">
-    <p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p>
-    <h1>Create grade revision</h1>
-    <p>Student: {{ submission.student.display_name }}. Maximum score: {{ assignment.max_score }}.</p>
-    <p>Saving creates a private draft revision. Release it separately after review.</p>
-    <form method="post">
+    <header><p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p><h1>Create grade revision</h1><p class="lede">Grade {{ submission.student.display_name }} against a retained submission version. Maximum score: <strong>{{ assignment.max_score }}</strong>.</p></header>
+    <div class="alert" role="status">Saving creates a private draft revision. Release it separately after review.</div>
+    <form method="post" novalidate data-loading>
       {% csrf_token %}
       {% include "includes/form_fields.html" %}
       <div class="form-actions">
-        <button type="submit">Save draft grade</button>
-        <a href="{% url 'assignments:submission_detail' course.id assignment.id submission.id %}">Cancel</a>
+        <button type="submit" data-loading-text="Saving grade…">Save draft grade</button>
+        <a class="button button-secondary" href="{% url 'assignments:submission_detail' course.id assignment.id submission.id %}">Cancel</a>
       </div>
     </form>
   </section>
