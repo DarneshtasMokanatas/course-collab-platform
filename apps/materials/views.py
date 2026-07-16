@@ -2,6 +2,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
+from django.db.models import Prefetch
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -37,10 +39,20 @@ def material_list(request, course_id):
         if not owner
         else course.materials.all()
     )
+    materials = materials.select_related("section").prefetch_related(
+        Prefetch(
+            "versions",
+            queryset=MaterialVersion.objects.order_by("version_number"),
+            to_attr="ordered_versions",
+        )
+    )
+    page = Paginator(materials.order_by("section__position", "title"), 20).get_page(
+        request.GET.get("page")
+    )
     return render(
         request,
         "materials/history_list.html",
-        {"course": course, "materials": materials, "owner": owner},
+        {"course": course, "page": page, "owner": owner},
     )
 
 

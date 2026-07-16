@@ -11,17 +11,18 @@
   </div>
 </section>
 <section>
-  {% if assignments %}
+  {% if page.object_list %}
     <ol class="card-list">
-      {% for assignment in assignments %}
+      {% for assignment in page.object_list %}
         <li>
           <p class="eyebrow">{{ assignment.get_status_display }}{% if assignment.section %} · {{ assignment.section.title }}{% endif %}</p>
           <h2><a href="{% url 'assignments:detail' course.id assignment.id %}">{{ assignment.title }}</a></h2>
-          <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}</p>
+          <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}{% if assignment.due_at > now %} · Due in {{ assignment.due_at|timeuntil:now }}{% else %} · Due {{ assignment.due_at|timesince:now }} ago{% endif %}</p>
           <p>Allowed files: {{ assignment.allowed_extensions|join:", " }} · Max upload {{ assignment.max_upload_bytes }} bytes</p>
         </li>
       {% endfor %}
     </ol>
+    {% include "includes/pagination.html" with pagination_label="Assignment pages" %}
   {% else %}
     <p class="empty-state">No assignments are available yet.</p>
   {% endif %}

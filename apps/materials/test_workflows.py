@@ -5,13 +5,14 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from apps.courses.models import Course, Enrolment
 
-from .models import Material
+from .models import Material, MaterialVersion
 from .services import add_material_version, create_material
 
 PDF_HEADER = b"%PDF-1.4\n"
@@ -251,3 +252,36 @@ class MaterialWorkflowTests(TestCase):
                 )
             )
         self.assertEqual(response.status_code, 404)
+
+    def test_material_history_query_count_is_bounded_and_paginated(self):
+        materials = [
+            Material.objects.create(
+                course=self.course,
+                title=f"Material {number:02d}",
+                description="Query test",
+                status=Material.Status.PUBLISHED,
+                created_by=self.instructor,
+            )
+            for number in range(25)
+        ]
+        MaterialVersion.objects.bulk_create(
+            [
+                MaterialVersion(
+                    material=material,
+                    version_number=1,
+                    storage_key=f"query/material/{material.id}",
+                    original_filename="material.pdf",
+                    content_type="application/pdf",
+                    size_bytes=10,
+                    sha256="a" * 64,
+                    uploaded_by=self.instructor,
+                )
+                for material in materials
+            ]
+        )
+        self.client.force_login(self.student)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get(reverse("materials:list", args=[self.course.id]))
+            self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["page"].object_list), 20)
+        self.assertLessEqual(len(queries), 7)

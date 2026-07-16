@@ -66,10 +66,16 @@ def assignment_list(request, course_id):
     )
     if not owner:
         assignments = assignments.filter(status=Assignment.Status.PUBLISHED)
+    page = Paginator(assignments, 20).get_page(request.GET.get("page"))
     return render(
         request,
         "assignments/list.html",
-        {"course": course, "assignments": assignments, "owner": owner},
+        {
+            "course": course,
+            "page": page,
+            "owner": owner,
+            "now": timezone.now(),
+        },
     )
 
 
@@ -175,6 +181,7 @@ def assignment_detail(request, course_id, assignment_id):
             "submission_count": submission_count,
             "can_resubmit": can_resubmit,
             "latest_released_grade": latest_released_grade,
+            "now": timezone.now(),
         },
     )
 
@@ -240,6 +247,7 @@ def assignment_submit(request, course_id, assignment_id):
             "assignment": assignment,
             "form": form,
             "is_resubmission": existing_submission,
+            "now": timezone.now(),
         },
     )
 

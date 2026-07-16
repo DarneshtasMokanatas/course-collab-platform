@@ -1,3 +1,22 @@
 {% extends "base.html" %}
 {% block title %}Course catalogue | Course Collaboration Platform{% endblock %}
-{% block content %}<div class="page-heading"><div><p class="eyebrow">Course catalogue</p><h1>Open courses</h1></div></div>{% if courses %}<ul class="card-list">{% for course in courses %}<li><h2>{{ course.code }} — {{ course.title }}</h2><p>{{ course.description }}</p><form method="post" action="{% url 'courses:enrol' course.id %}">{% csrf_token %}<button type="submit">Enrol</button></form></li>{% endfor %}</ul>{% else %}<p class="empty-state">There are no published courses open for enrolment.</p>{% endif %}{% endblock %}
+{% block content %}
+  <div class="page-heading"><div><p class="eyebrow">Course catalogue</p><h1>Open courses</h1></div></div>
+  {% if page.object_list %}
+    <ul class="card-list">
+      {% for course in page.object_list %}
+        <li>
+          <h2>{{ course.code }} — {{ course.title }}</h2>
+          <p>{{ course.description }}</p>
+          <form method="post" action="{% url 'courses:enrol' course.id %}">
+            {% csrf_token %}
+            <button type="submit">Enrol</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    {% include "includes/pagination.html" with pagination_label="Catalogue pages" %}
+  {% else %}
+    <p class="empty-state">There are no published courses open for enrolment.</p>
+  {% endif %}
+{% endblock %}

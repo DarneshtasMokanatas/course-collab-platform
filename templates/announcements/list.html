@@ -14,9 +14,9 @@
     </div>
   </section>
   <section>
-    {% if announcements %}
+    {% if page.object_list %}
       <ol class="card-list">
-        {% for announcement in announcements %}
+        {% for announcement in page.object_list %}
           <li>
             <p class="eyebrow">
               {% if announcement.is_pinned %}Pinned · {% endif %}
@@ -31,6 +31,7 @@
           </li>
         {% endfor %}
       </ol>
+      {% include "includes/pagination.html" with pagination_label="Announcement pages" %}
     {% else %}
       <p class="empty-state">No announcements are available.</p>
     {% endif %}

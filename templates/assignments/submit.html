@@ -4,7 +4,7 @@
 <section class="hero">
   <p class="eyebrow">{{ assignment.course.code }}</p>
   <h1>{% if is_resubmission %}Submit a new version{% else %}Submit{% endif %} {{ assignment.title }}</h1>
-  <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }}. The server records the submission time when the upload is accepted.</p>
+  <p>Due {{ assignment.due_at|date:"M j, Y, g:i A T" }} · {% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}. The server records the submission time when the upload is accepted.</p>
   {% if is_resubmission %}
     <p>Your earlier versions will remain available. This upload becomes the current version.</p>
   {% endif %}

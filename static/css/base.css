@@ -12,7 +12,7 @@ a:focus-visible { outline: 3px solid #f59e0b; outline-offset: 3px; }
 .skip-link:focus { left: 1rem; top: 1rem; background: white; padding: .75rem; z-index: 2; }
 .site-header, footer { padding: 1rem clamp(1rem, 5vw, 4rem); background: #102a43; color: white; }
 .site-header { display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.site-header nav { display: flex; gap: 1rem; align-items: center; }
+.site-header nav { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .site-header nav a, .link-button { color: white; }
 .site-header nav form { margin: 0; }
 .brand { color: white; font-weight: 700; text-decoration: none; }
@@ -26,12 +26,12 @@ footer { text-align: center; }
 .form-card h1 { margin-top: 0; }
 .form-field { margin-bottom: 1rem; }
 .form-field label { display: block; margin-bottom: .35rem; font-weight: 700; }
-.form-field input, .form-field select, .form-field textarea { width: 100%; padding: .7rem; border: 1px solid #829ab1; border-radius: .35rem; font: inherit; }
+.form-field input:not([type="checkbox"]):not([type="radio"]), .form-field select, .form-field textarea { width: 100%; padding: .7rem; border: 1px solid #829ab1; border-radius: .35rem; font: inherit; }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus, button:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
 .help-text { margin-top: .35rem; color: #486581; font-size: .9rem; }
 .help-text ul, .field-errors ul, .form-errors ul { margin: .4rem 0; padding-left: 1.25rem; }
 .field-errors, .form-errors { color: #9b1c1c; }
-.form-actions { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
+.form-actions { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
 button, .button-link { display: inline-block; border: 0; border-radius: .35rem; padding: .7rem 1rem; background: #174ea6; color: white; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
 .link-button { padding: 0; background: transparent; text-decoration: underline; font-weight: 400; }
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; padding: 0; }
@@ -44,4 +44,13 @@ button, .button-link { display: inline-block; border: 0; border-radius: .35rem; 
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: .75rem; border-bottom: 1px solid #d9e2ec; text-align: left; vertical-align: top; }
 .pagination { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; }
-@media (max-width: 30rem) { .site-header { align-items: flex-start; } .site-header nav { width: 100%; } }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.card-list { display: grid; gap: 1rem; padding: 0; list-style: none; }
+.card-list > li { padding: 1rem; background: white; border-radius: .5rem; }
+.empty-state { padding: 1rem; border: 1px dashed #829ab1; border-radius: .5rem; }
+@media (max-width: 30rem) {
+  .site-header { align-items: flex-start; }
+  .site-header nav { width: 100%; }
+  .form-actions { align-items: stretch; flex-direction: column; }
+  .form-actions > * { width: 100%; text-align: center; }
+}

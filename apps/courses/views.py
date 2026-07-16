@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -32,7 +33,8 @@ def _instructor_required(user):
 def course_list(request):
     _instructor_required(request.user)
     courses = Course.objects.filter(instructor=request.user).order_by("-updated_at")
-    return render(request, "courses/course_list.html", {"courses": courses})
+    page = Paginator(courses, 20).get_page(request.GET.get("page"))
+    return render(request, "courses/course_list.html", {"page": page})
 
 
 @login_required

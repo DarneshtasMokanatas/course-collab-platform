@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -18,15 +19,14 @@ def course_portal(request):
             status=Course.Status.PUBLISHED,
             enrolment_mode=Course.EnrolmentMode.OPEN,
         ).order_by("code")
-        return render(request, "courses/catalogue.html", {"courses": courses})
+        page = Paginator(courses, 20).get_page(request.GET.get("page"))
+        return render(request, "courses/catalogue.html", {"page": page})
+    courses = Course.objects.filter(instructor=request.user).order_by("-updated_at")
+    page = Paginator(courses, 20).get_page(request.GET.get("page"))
     return render(
         request,
         "courses/course_list.html",
-        {
-            "courses": Course.objects.filter(instructor=request.user).order_by(
-                "-updated_at"
-            )
-        },
+        {"page": page},
     )
 
 
