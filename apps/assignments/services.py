@@ -12,9 +12,29 @@ from apps.courses.models import Course, Enrolment
 
 from .models import Assignment, Submission, SubmissionVersion
 
+MIME_TYPES_BY_EXTENSION = {
+    "csv": {"text/csv"},
+    "doc": {"application/msword"},
+    "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    "jpeg": {"image/jpeg"},
+    "jpg": {"image/jpeg"},
+    "pdf": {"application/pdf"},
+    "png": {"image/png"},
+    "ppt": {"application/vnd.ms-powerpoint"},
+    "pptx": {
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    },
+    "txt": {"text/plain"},
+    "xls": {"application/vnd.ms-excel"},
+    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
+    "zip": {"application/zip", "application/x-zip-compressed"},
+}
+
 
 def _require_owner(actor, course):
-    if actor.role != actor.Role.INSTRUCTOR or course.instructor_id != actor.id:
+    if not actor.is_staff and (
+        actor.role != actor.Role.INSTRUCTOR or course.instructor_id != actor.id
+    ):
         raise PermissionDenied("You do not manage this course.")
 
 
@@ -83,13 +103,19 @@ def _file_metadata(assignment, upload):
         raise ValidationError("This file type is not allowed for the assignment.")
     if upload.size <= 0 or upload.size > assignment.max_upload_bytes:
         raise ValidationError("This file does not meet the assignment size limit.")
+    allowed_content_types = MIME_TYPES_BY_EXTENSION.get(extension)
+    content_type = (upload.content_type or "").partition(";")[0].strip().lower()
+    if not allowed_content_types or content_type not in allowed_content_types:
+        raise ValidationError(
+            "The uploaded file content type does not match its extension."
+        )
     digest = hashlib.sha256()
     for chunk in upload.chunks():
         digest.update(chunk)
     upload.seek(0)
     return (
         filename,
-        upload.content_type or "application/octet-stream",
+        content_type,
         upload.size,
         digest.hexdigest(),
     )
@@ -128,6 +154,7 @@ def submit_first_version(*, actor, assignment, upload):
                 content_type=content_type,
                 size_bytes=size,
                 sha256=sha256,
+                submitted_at=now,
                 was_late=now > assignment.due_at,
             )
             version.storage_key = (
@@ -157,6 +184,96 @@ def submit_first_version(*, actor, assignment, upload):
                     "submission_id": str(submission.id),
                     "version_number": 1,
                     "was_late": version.was_late,
+                },
+            )
+    except Exception:
+        if saved_key:
+            default_storage.delete(saved_key)
+        raise
+    return version
+
+
+def submit_resubmission(*, actor, assignment, upload):
+    if actor.role != actor.Role.STUDENT:
+        raise PermissionDenied("Student access is required.")
+    filename, content_type, size, sha256 = _file_metadata(assignment, upload)
+    saved_key = None
+    try:
+        with transaction.atomic():
+            assignment = Assignment.objects.select_related("course").get(
+                pk=assignment.pk
+            )
+            if assignment.status != Assignment.Status.PUBLISHED:
+                raise ValidationError("This assignment is not accepting submissions.")
+            if not Enrolment.objects.filter(
+                course=assignment.course,
+                student=actor,
+                status=Enrolment.Status.ACTIVE,
+            ).exists():
+                raise PermissionDenied("Active enrolment is required.")
+            submission = (
+                Submission.objects.select_for_update()
+                .filter(assignment=assignment, student=actor)
+                .first()
+            )
+            if submission is None:
+                raise ValidationError("Submit a first version before resubmitting.")
+            if not assignment.allow_resubmission:
+                raise ValidationError(
+                    "Resubmission is not enabled for this assignment."
+                )
+            now = timezone.now()
+            if now >= assignment.due_at:
+                raise ValidationError(
+                    "Resubmissions must be received before the deadline."
+                )
+            latest_version_number = (
+                submission.versions.order_by("-version_number")
+                .values_list("version_number", flat=True)
+                .first()
+            )
+            if latest_version_number is None:
+                raise ValidationError("Submit a first version before resubmitting.")
+            version = SubmissionVersion(
+                submission=submission,
+                version_number=latest_version_number + 1,
+                original_filename=filename,
+                content_type=content_type,
+                size_bytes=size,
+                sha256=sha256,
+                submitted_at=now,
+                was_late=False,
+            )
+            version.storage_key = (
+                f"courses/{assignment.course_id}/assignments/{assignment.id}/"
+                f"submissions/{submission.id}/{version.id}"
+            )
+            saved_key = default_storage.save(version.storage_key, upload)
+            version.storage_key = saved_key
+            version.full_clean()
+            version.save()
+            ActivityEvent.objects.create(
+                course=assignment.course,
+                user=actor,
+                event_type=ActivityEvent.EventType.SUBMISSION_RESUBMITTED,
+                object_type="SubmissionVersion",
+                object_id=version.id,
+                metadata={
+                    "version_number": version.version_number,
+                    "was_late": False,
+                },
+            )
+            AuditEvent.objects.create(
+                actor=actor,
+                action="SUBMISSION_RESUBMITTED",
+                object_type="SubmissionVersion",
+                object_id=version.id,
+                course=assignment.course,
+                metadata={
+                    "assignment_id": str(assignment.id),
+                    "submission_id": str(submission.id),
+                    "version_number": version.version_number,
+                    "was_late": False,
                 },
             )
     except Exception:

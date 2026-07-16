@@ -21,4 +21,21 @@ urlpatterns = [
         views.assignment_submit,
         name="submit",
     ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/submissions/",
+        views.assignment_submissions,
+        name="submission_list",
+    ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
+        "submissions/<uuid:submission_id>/",
+        views.submission_detail,
+        name="submission_detail",
+    ),
+    path(
+        "courses/<uuid:course_id>/assignments/<uuid:assignment_id>/"
+        "submissions/<uuid:submission_id>/versions/<uuid:version_id>/download/",
+        views.submission_version_download,
+        name="submission_version_download",
+    ),
 ]

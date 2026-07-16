@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ submission.student.display_name }} | {{ assignment.title }}{% endblock %}
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p>
+    <h1>{{ submission.student.display_name }}</h1>
+    <p>First submitted {{ submission.created_at|date:"M j, Y, g:i A T" }}</p>
+    <p><a class="button-link" href="{% url 'assignments:submission_list' course.id assignment.id %}">Back to submissions</a></p>
+  </section>
+  <section>
+    <h2>Version history</h2>
+    <ol class="card-list">
+      {% for version in submission.ordered_versions %}
+        <li>
+          <h3>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</h3>
+          <p>Received {{ version.submitted_at|date:"M j, Y, g:i A T" }}{% if version.was_late %} · Late{% else %} · On time{% endif %}</p>
+          <p>{{ version.original_filename }} · {{ version.size_bytes }} bytes</p>
+          <p><a href="{% url 'assignments:submission_version_download' course.id assignment.id submission.id version.id %}">Download version {{ version.version_number }}</a></p>
+        </li>
+      {% empty %}
+        <li class="empty-state">No submission versions are available.</li>
+      {% endfor %}
+    </ol>
+  </section>
+{% endblock %}

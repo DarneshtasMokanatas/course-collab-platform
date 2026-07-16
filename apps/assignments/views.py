@@ -3,7 +3,10 @@ from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import Http404
+from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
+from django.db.models import Prefetch
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -11,15 +14,22 @@ from apps.analytics.models import ActivityEvent
 from apps.courses.models import Course, Enrolment
 
 from .forms import AssignmentForm, SubmissionForm
-from .models import Assignment, Submission
-from .services import create_assignment, publish_assignment, submit_first_version
+from .models import Assignment, Submission, SubmissionVersion
+from .services import (
+    create_assignment,
+    publish_assignment,
+    submit_first_version,
+    submit_resubmission,
+)
 
 
 def _owner_course(user, course_id):
     course = get_object_or_404(
         Course.objects.prefetch_related("sections"), pk=course_id
     )
-    if user.role != user.Role.INSTRUCTOR or course.instructor_id != user.id:
+    if not user.is_staff and (
+        user.role != user.Role.INSTRUCTOR or course.instructor_id != user.id
+    ):
         raise Http404
     return course
 
@@ -37,7 +47,9 @@ def _course_access(user, course_id):
     course = get_object_or_404(
         Course.objects.prefetch_related("sections"), pk=course_id
     )
-    owner = user.role == user.Role.INSTRUCTOR and course.instructor_id == user.id
+    owner = user.is_staff or (
+        user.role == user.Role.INSTRUCTOR and course.instructor_id == user.id
+    )
     active_student = _active_student(user, course)
     if not owner and not active_student:
         raise Http404
@@ -108,7 +120,7 @@ def assignment_detail(request, course_id, assignment_id):
         pk=assignment_id,
         course_id=course_id,
     )
-    owner = (
+    owner = request.user.is_staff or (
         request.user.role == request.user.Role.INSTRUCTOR
         and assignment.course.instructor_id == request.user.id
     )
@@ -121,6 +133,7 @@ def assignment_detail(request, course_id, assignment_id):
         raise Http404
     student_submission = None
     submission_count = None
+    can_resubmit = False
     if owner:
         submission_count = assignment.submissions.count()
     else:
@@ -128,6 +141,12 @@ def assignment_detail(request, course_id, assignment_id):
             Submission.objects.filter(assignment=assignment, student=request.user)
             .prefetch_related("versions")
             .first()
+        )
+        can_resubmit = bool(
+            student_submission
+            and assignment.status == Assignment.Status.PUBLISHED
+            and assignment.allow_resubmission
+            and timezone.now() < assignment.due_at
         )
         recent_view = ActivityEvent.objects.filter(
             course=assignment.course,
@@ -153,6 +172,7 @@ def assignment_detail(request, course_id, assignment_id):
             "owner": owner,
             "student_submission": student_submission,
             "submission_count": submission_count,
+            "can_resubmit": can_resubmit,
         },
     )
 
@@ -167,10 +187,35 @@ def assignment_submit(request, course_id, assignment_id):
     )
     if not _active_student(request.user, assignment.course):
         raise Http404
+    existing_submission = Submission.objects.filter(
+        assignment=assignment,
+        student=request.user,
+    ).exists()
+    if request.method == "GET" and existing_submission:
+        if not assignment.allow_resubmission:
+            messages.error(request, "Resubmission is not enabled for this assignment.")
+            return redirect(
+                "assignments:detail",
+                course_id=course_id,
+                assignment_id=assignment_id,
+            )
+        if timezone.now() >= assignment.due_at:
+            messages.error(
+                request,
+                "The resubmission deadline has passed.",
+            )
+            return redirect(
+                "assignments:detail",
+                course_id=course_id,
+                assignment_id=assignment_id,
+            )
     form = SubmissionForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         try:
-            version = submit_first_version(
+            submit_service = (
+                submit_resubmission if existing_submission else submit_first_version
+            )
+            version = submit_service(
                 actor=request.user,
                 assignment=assignment,
                 upload=form.cleaned_data["file"],
@@ -187,5 +232,109 @@ def assignment_submit(request, course_id, assignment_id):
                 "assignments:detail", course_id=course_id, assignment_id=assignment_id
             )
     return render(
-        request, "assignments/submit.html", {"assignment": assignment, "form": form}
+        request,
+        "assignments/submit.html",
+        {
+            "assignment": assignment,
+            "form": form,
+            "is_resubmission": existing_submission,
+        },
     )
+
+
+@login_required
+def assignment_submissions(request, course_id, assignment_id):
+    course = _owner_course(request.user, course_id)
+    assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
+    submissions = (
+        Submission.objects.filter(assignment=assignment)
+        .select_related("student")
+        .prefetch_related(
+            Prefetch(
+                "versions",
+                queryset=SubmissionVersion.objects.order_by("version_number"),
+                to_attr="ordered_versions",
+            )
+        )
+        .order_by("student__display_name", "student__username")
+    )
+    page = Paginator(submissions, 25).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "assignments/submission_list.html",
+        {"course": course, "assignment": assignment, "page": page},
+    )
+
+
+@login_required
+def submission_detail(request, course_id, assignment_id, submission_id):
+    course = _owner_course(request.user, course_id)
+    assignment = get_object_or_404(Assignment, pk=assignment_id, course=course)
+    submission = get_object_or_404(
+        Submission.objects.select_related("student").prefetch_related(
+            Prefetch(
+                "versions",
+                queryset=SubmissionVersion.objects.order_by("version_number"),
+                to_attr="ordered_versions",
+            )
+        ),
+        pk=submission_id,
+        assignment=assignment,
+    )
+    return render(
+        request,
+        "assignments/submission_detail.html",
+        {
+            "course": course,
+            "assignment": assignment,
+            "submission": submission,
+        },
+    )
+
+
+@login_required
+def submission_version_download(
+    request,
+    course_id,
+    assignment_id,
+    submission_id,
+    version_id,
+):
+    version = get_object_or_404(
+        SubmissionVersion.objects.select_related(
+            "submission__student",
+            "submission__assignment__course",
+        ),
+        pk=version_id,
+        submission_id=submission_id,
+        submission__assignment_id=assignment_id,
+        submission__assignment__course_id=course_id,
+    )
+    course = version.submission.assignment.course
+    is_owner = (
+        request.user.role == request.user.Role.INSTRUCTOR
+        and course.instructor_id == request.user.id
+    )
+    is_student_owner = (
+        request.user.role == request.user.Role.STUDENT
+        and version.submission.student_id == request.user.id
+        and Enrolment.objects.filter(
+            course=course,
+            student=request.user,
+            status=Enrolment.Status.ACTIVE,
+        ).exists()
+    )
+    if not request.user.is_staff and not is_owner and not is_student_owner:
+        raise Http404
+    try:
+        stored_file = default_storage.open(version.storage_key, "rb")
+    except (FileNotFoundError, OSError):
+        raise Http404 from None
+    response = FileResponse(
+        stored_file,
+        as_attachment=True,
+        filename=version.original_filename,
+        content_type="application/octet-stream",
+    )
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

@@ -17,6 +17,8 @@
     {% endif %}
     {% if not owner and not student_submission %}
       <a class="button-link" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit work</a>
+    {% elif not owner and can_resubmit %}
+      <a class="button-link" href="{% url 'assignments:submit' assignment.course_id assignment.id %}">Submit a new version</a>
     {% endif %}
   </div>
 </section>
@@ -24,6 +26,7 @@
   <section>
     <h2>Submission summary</h2>
     <p>{{ submission_count }} student submission{{ submission_count|pluralize }} received.</p>
+    <p><a class="button-link" href="{% url 'assignments:submission_list' assignment.course_id assignment.id %}">Review submission history</a></p>
   </section>
 {% else %}
   <section>
@@ -35,6 +38,7 @@
             <h3>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</h3>
             <p>Received {{ version.submitted_at|date:"M j, Y, g:i A T" }}{% if version.was_late %} · Late{% else %} · On time{% endif %}</p>
             <p>{{ version.original_filename }} · {{ version.size_bytes }} bytes</p>
+            <p><a href="{% url 'assignments:submission_version_download' assignment.course_id assignment.id student_submission.id version.id %}">Download version {{ version.version_number }}</a></p>
           </li>
         {% endfor %}
       </ol>

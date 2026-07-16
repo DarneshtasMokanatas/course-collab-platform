@@ -13,14 +13,37 @@ class AssignmentAdmin(admin.ModelAdmin):
 class SubmissionVersionInline(admin.TabularInline):
     model = SubmissionVersion
     extra = 0
-    readonly_fields = ("submitted_at",)
+    can_delete = False
+    readonly_fields = (
+        "version_number",
+        "storage_key",
+        "original_filename",
+        "content_type",
+        "size_bytes",
+        "sha256",
+        "submitted_at",
+        "was_late",
+    )
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Submission)
 class SubmissionAdmin(admin.ModelAdmin):
     list_display = ("student", "assignment", "created_at")
     search_fields = ("student__username", "assignment__title")
+    readonly_fields = ("assignment", "student", "created_at")
     inlines = (SubmissionVersionInline,)
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(GradeRevision)

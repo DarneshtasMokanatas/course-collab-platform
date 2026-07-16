@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from apps.courses.models import Course, CourseSection
 
@@ -130,7 +131,7 @@ class SubmissionVersion(models.Model):
     content_type = models.CharField(max_length=255)
     size_bytes = models.BigIntegerField()
     sha256 = models.CharField(max_length=64)
-    submitted_at = models.DateTimeField(auto_now_add=True)
+    submitted_at = models.DateTimeField(default=timezone.now, editable=False)
     was_late = models.BooleanField()
 
     class Meta:
