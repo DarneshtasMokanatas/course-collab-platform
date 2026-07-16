@@ -7,6 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.analytics.models import ActivityEvent
+from apps.analytics.services import record_activity
 from apps.audit.models import AuditEvent
 from apps.courses.models import Course, Enrolment
 
@@ -165,7 +166,7 @@ def submit_first_version(*, actor, assignment, upload):
             version.storage_key = saved_key
             version.full_clean()
             version.save()
-            ActivityEvent.objects.create(
+            record_activity(
                 course=assignment.course,
                 user=actor,
                 event_type=ActivityEvent.EventType.SUBMISSION_CREATED,
@@ -252,7 +253,7 @@ def submit_resubmission(*, actor, assignment, upload):
             version.storage_key = saved_key
             version.full_clean()
             version.save()
-            ActivityEvent.objects.create(
+            record_activity(
                 course=assignment.course,
                 user=actor,
                 event_type=ActivityEvent.EventType.SUBMISSION_RESUBMITTED,

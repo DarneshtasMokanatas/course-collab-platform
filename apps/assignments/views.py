@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -11,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from apps.analytics.models import ActivityEvent
+from apps.analytics.services import record_activity
 from apps.courses.models import Course, Enrolment
 
 from .forms import AssignmentForm, GradeRevisionForm, SubmissionForm
@@ -159,22 +158,13 @@ def assignment_detail(request, course_id, assignment_id):
                 .order_by("-revision_number")
                 .first()
             )
-        recent_view = ActivityEvent.objects.filter(
+        record_activity(
             course=assignment.course,
             user=request.user,
             event_type=ActivityEvent.EventType.ASSIGNMENT_VIEWED,
             object_type="Assignment",
             object_id=assignment.id,
-            occurred_at__gte=timezone.now() - timedelta(minutes=5),
-        ).exists()
-        if not recent_view:
-            ActivityEvent.objects.create(
-                course=assignment.course,
-                user=request.user,
-                event_type=ActivityEvent.EventType.ASSIGNMENT_VIEWED,
-                object_type="Assignment",
-                object_id=assignment.id,
-            )
+        )
     return render(
         request,
         "assignments/detail.html",

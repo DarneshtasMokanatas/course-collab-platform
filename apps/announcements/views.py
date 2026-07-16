@@ -1,14 +1,12 @@
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Exists, OuterRef
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from apps.analytics.models import ActivityEvent
+from apps.analytics.services import record_activity
 from apps.courses.models import Course, Enrolment
 
 from .forms import AnnouncementEditForm, AnnouncementForm
@@ -124,22 +122,13 @@ def announcement_detail(request, course_id, announcement_id):
     )
     if not owner:
         mark_announcement_read(student=request.user, announcement=announcement)
-        recent_view = ActivityEvent.objects.filter(
+        record_activity(
             course=course,
             user=request.user,
             event_type=ActivityEvent.EventType.ANNOUNCEMENT_VIEWED,
             object_type="Announcement",
             object_id=announcement.id,
-            occurred_at__gte=timezone.now() - timedelta(minutes=5),
-        ).exists()
-        if not recent_view:
-            ActivityEvent.objects.create(
-                course=course,
-                user=request.user,
-                event_type=ActivityEvent.EventType.ANNOUNCEMENT_VIEWED,
-                object_type="Announcement",
-                object_id=announcement.id,
-            )
+        )
     return render(
         request,
         "announcements/detail.html",

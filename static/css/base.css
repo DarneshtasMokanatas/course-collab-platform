@@ -34,4 +34,14 @@ footer { text-align: center; }
 .form-actions { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; }
 button, .button-link { display: inline-block; border: 0; border-radius: .35rem; padding: .7rem 1rem; background: #174ea6; color: white; font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; }
 .link-button { padding: 0; background: transparent; text-decoration: underline; font-weight: 400; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 1rem; padding: 0; }
+.metric-grid div { padding: 1rem; background: white; border-radius: .5rem; }
+.metric-grid dt { color: #486581; font-weight: 700; }
+.metric-grid dd { margin: .25rem 0 0; font-size: 1.75rem; font-weight: 700; }
+.inline-filter { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin: 1rem 0; }
+.inline-filter input { width: 5rem; padding: .6rem; font: inherit; }
+.table-scroll { overflow-x: auto; background: white; border-radius: .5rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: .75rem; border-bottom: 1px solid #d9e2ec; text-align: left; vertical-align: top; }
+.pagination { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; }
 @media (max-width: 30rem) { .site-header { align-items: flex-start; } .site-header nav { width: 100%; } }

@@ -4,6 +4,9 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.analytics.models import ActivityEvent
+from apps.analytics.services import record_activity
+
 from .enrolment_services import enrol_student
 from .models import Course, Enrolment
 
@@ -41,6 +44,14 @@ def course_detail_portal(request, course_id):
     )
     if not can_manage and not enrolled:
         raise Http404
+    if enrolled:
+        record_activity(
+            course=course,
+            user=request.user,
+            event_type=ActivityEvent.EventType.COURSE_VIEWED,
+            object_type="Course",
+            object_id=course.id,
+        )
     return render(
         request,
         "courses/course_detail.html"

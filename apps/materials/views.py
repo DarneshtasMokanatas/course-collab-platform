@@ -6,6 +6,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
 from apps.analytics.models import ActivityEvent
+from apps.analytics.services import record_activity
 from apps.courses.models import Course
 
 from .forms import MaterialForm, MaterialVersionForm
@@ -99,7 +100,14 @@ def material_download(request, course_id, material_id, version_id):
         raise Http404
     if not default_storage.exists(version.storage_key):
         raise Http404
-    ActivityEvent.objects.create(
+    record_activity(
+        course=material.course,
+        user=request.user,
+        event_type=ActivityEvent.EventType.MATERIAL_VIEWED,
+        object_type="Material",
+        object_id=material.id,
+    )
+    record_activity(
         course=material.course,
         user=request.user,
         event_type=ActivityEvent.EventType.MATERIAL_DOWNLOADED,
@@ -110,4 +118,5 @@ def material_download(request, course_id, material_id, version_id):
         default_storage.open(version.storage_key, "rb"),
         as_attachment=True,
         filename=version.original_filename,
+        content_type="application/octet-stream",
     )

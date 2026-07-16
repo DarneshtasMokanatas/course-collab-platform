@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Platform activity | {{ course.code }}{% endblock %}
+{% block content %}
+  <section class="hero">
+    <p class="eyebrow">{{ course.code }} · Instructor analytics</p>
+    <h1>Platform participation</h1>
+    <p>This page reports activity inside the course workspace. It does not measure physical attendance.</p>
+    <p><a href="{% url 'courses:detail' course.id %}">Back to course</a></p>
+  </section>
+
+  <section aria-labelledby="analytics-summary">
+    <h2 id="analytics-summary">Course summary</h2>
+    <dl class="metric-grid">
+      <div><dt>Active enrolments</dt><dd>{{ active_enrolment_count }}</dd></div>
+      <div><dt>Tracked assignments</dt><dd>{{ assignment_count }}</dd></div>
+      <div><dt>Inactive students</dt><dd>{{ inactive_student_count }}</dd></div>
+    </dl>
+    <form method="get" class="inline-filter">
+      <label for="inactive-days">Inactive after</label>
+      <input id="inactive-days" name="inactive_days" type="number" min="1" max="365" value="{{ inactive_days }}">
+      <span>days without recorded platform activity</span>
+      <button type="submit">Apply</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="student-participation">
+    <h2 id="student-participation">Student participation</h2>
+    {% if rows %}
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Student participation table">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Student</th>
+              <th scope="col">Latest platform activity</th>
+              <th scope="col">Submitted</th>
+              <th scope="col">Missing</th>
+              <th scope="col">Late</th>
+              <th scope="col">Graded</th>
+              <th scope="col">Released results</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <th scope="row">{{ row.student.display_name }}</th>
+                <td>
+                  {% if row.latest_activity %}
+                    {{ row.latest_activity|date:"M j, Y, g:i A T" }}
+                    {% if row.is_inactive %}<strong> · Inactive</strong>{% endif %}
+                  {% else %}
+                    No recorded activity · <strong>Inactive</strong>
+                  {% endif %}
+                </td>
+                <td>{{ row.submitted }}</td>
+                <td>{{ row.missing }}</td>
+                <td>{{ row.late }}</td>
+                <td>{{ row.graded }}</td>
+                <td>
+                  {% if row.released_average is not None %}
+                    Total {{ row.released_total }} · Average {{ row.released_average|floatformat:2 }}
+                  {% else %}
+                    No released grade
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page.has_other_pages %}
+        <nav class="pagination" aria-label="Analytics pages">
+          {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&amp;inactive_days={{ inactive_days }}">Previous</a>{% endif %}
+          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}<a href="?page={{ page.next_page_number }}&amp;inactive_days={{ inactive_days }}">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% else %}
+      <p class="empty-state">No active students are enrolled in this course.</p>
+    {% endif %}
+  </section>
+{% endblock %}
