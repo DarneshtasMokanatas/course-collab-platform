@@ -5,6 +5,9 @@ if (menuButton && primaryNavigation) {
   menuButton.hidden = false;
   const mobileNavigation = window.matchMedia("(max-width: 56rem)");
   const syncNavigation = (isMobile) => {
+    if (isMobile && primaryNavigation.contains(document.activeElement)) {
+      menuButton.focus();
+    }
     primaryNavigation.hidden = isMobile;
     menuButton.setAttribute("aria-expanded", "false");
   };
@@ -32,6 +35,7 @@ const dialogMessage = document.querySelector("#confirmation-message");
 const dialogAccept = document.querySelector("#confirmation-accept");
 const dialogCancel = document.querySelector("#confirmation-cancel");
 let pendingForm = null;
+let confirmationTrigger = null;
 
 if (dialog && dialogMessage && dialogAccept && dialogCancel) {
   document.querySelectorAll("form[data-confirm]").forEach((form) => {
@@ -41,6 +45,7 @@ if (dialog && dialogMessage && dialogAccept && dialogCancel) {
       }
       event.preventDefault();
       pendingForm = form;
+      confirmationTrigger = event.submitter;
       dialogMessage.textContent = form.dataset.confirm;
       dialogAccept.classList.toggle("button-danger", form.dataset.confirmTone === "danger");
       dialog.showModal();
@@ -62,8 +67,15 @@ if (dialog && dialogMessage && dialogAccept && dialogCancel) {
   });
 
   dialog.addEventListener("close", () => {
-    pendingForm?.querySelector("button, input, select, textarea, a")?.focus();
+    if (confirmationTrigger) {
+      confirmationTrigger.focus();
+    } else {
+      pendingForm
+        ?.querySelector('button:not([disabled]), input:not([type="hidden"]), select, textarea')
+        ?.focus();
+    }
     pendingForm = null;
+    confirmationTrigger = null;
   });
 }
 

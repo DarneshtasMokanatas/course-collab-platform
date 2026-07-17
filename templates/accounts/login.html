@@ -5,6 +5,7 @@
   <section class="auth-layout" aria-labelledby="login-heading">
     <div class="auth-form-panel">
       <div class="form-card">
+        {% include "includes/brand_lockup.html" with auth=True compact=True %}
         <header>
           <p class="eyebrow">Welcome back</p>
           <h1 id="login-heading">Log in to your workspace</h1>
@@ -25,6 +26,7 @@
     <div class="auth-art-panel">
       <img src="{% static 'images/generated/auth-collaboration.webp' %}" width="1200" height="800" alt="Students and an instructor collaborating on digital coursework.">
       <div class="auth-art-caption">
+        <span class="auth-caption-kicker">A connected learning space</span>
         <p><strong>One calm place for course collaboration.</strong></p>
         <p>Keep learning materials, deadlines, submissions, and feedback connected.</p>
       </div>

@@ -13,10 +13,12 @@ class RegistrationForm(UserCreationForm):
             "username": forms.TextInput(attrs={"autocomplete": "username"}),
             "email": forms.EmailInput(attrs={"autocomplete": "email"}),
             "display_name": forms.TextInput(attrs={"autocomplete": "name"}),
+            "role": forms.RadioSelect(attrs={"aria-describedby": "id_role_helptext"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["role"].choices = User.Role.choices
         self.fields["role"].help_text = (
             "Students enrol and submit coursework. "
             "Instructors create and manage courses."

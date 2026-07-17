@@ -14,11 +14,7 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
       <div class="header-inner">
-        <a class="brand" href="{% url 'home' %}" aria-label="Course Collaboration Platform home">
-          <span class="brand-mark" aria-hidden="true">CC</span>
-          <span class="brand-long">Course Collaboration Platform</span>
-          <span class="brand-short">CourseCollab</span>
-        </a>
+        {% include "includes/brand_lockup.html" %}
         <button class="menu-toggle button-secondary" type="button" aria-expanded="false" aria-controls="primary-navigation" hidden>
           <span aria-hidden="true">☰</span>
           Menu
@@ -73,11 +69,11 @@
     </main>
     <footer class="site-footer">
       <div class="footer-inner">
-        <p><strong>CourseCollab</strong> — a focused academic course workspace.</p>
+        {% include "includes/brand_lockup.html" with footer=True compact=True %}
         <p>Dates and deadlines display in Malaysia Time (MYT).</p>
       </div>
     </footer>
-    <dialog class="dialog" id="confirmation-dialog" aria-labelledby="confirmation-title">
+    <dialog class="dialog" id="confirmation-dialog" aria-labelledby="confirmation-title" aria-describedby="confirmation-message">
       <div class="dialog-content">
         <h2 id="confirmation-title">Confirm action</h2>
         <p id="confirmation-message">Are you sure you want to continue?</p>

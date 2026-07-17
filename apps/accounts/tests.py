@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.urls import reverse
 
 
 class UserFoundationTests(TestCase):
@@ -42,3 +43,25 @@ class UserFoundationTests(TestCase):
                 role=user_model.Role.STUDENT,
                 password="SafeTestPassword!2026",
             )
+
+
+class RegistrationPresentationTests(TestCase):
+    def test_role_choice_renders_as_a_described_radio_group(self):
+        response = self.client.get(reverse("accounts:register"))
+
+        self.assertContains(response, 'id="id_role_group"')
+        self.assertContains(response, 'aria-describedby="id_role_helptext"')
+        self.assertContains(response, 'type="radio" name="role" value="STUDENT"')
+        self.assertContains(response, 'type="radio" name="role" value="INSTRUCTOR"')
+        self.assertNotContains(response, 'type="radio" name="role" value=""')
+
+    def test_role_error_summary_targets_the_radio_group(self):
+        response = self.client.post(
+            reverse("accounts:register"), data={"username": "incomplete"}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="#id_role_group"')
+        self.assertContains(response, 'id="id_role_group"')
+        self.assertContains(response, 'aria-invalid="true"')
+        self.assertContains(response, "id_role_helptext id_role_error")

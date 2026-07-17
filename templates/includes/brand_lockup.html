@@ -1,0 +1,8 @@
+{% load static %}
+<a class="brand{% if footer %} brand--footer{% endif %}{% if auth %} brand--auth{% endif %}" href="{% url 'home' %}" aria-label="CourseCollab home">
+  <img class="brand-mark" src="{% static 'images/brand/coursecollab-mark.svg' %}" width="48" height="48" alt="">
+  <span class="brand-wordmark">
+    <span class="brand-name">Course<span>Collab</span></span>
+    {% if not compact %}<span class="brand-descriptor">Academic workspace</span>{% endif %}
+  </span>
+</a>
