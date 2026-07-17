@@ -27,7 +27,6 @@
           {% else %}
             <p>Created {{ announcement.created_at|date:"M j, Y, g:i A" }} MYT</p>
           {% endif %}
-          <a class="card-link" href="{% url 'announcements:detail' course.id announcement.id %}">Read announcement <span aria-hidden="true">→</span></a>
         </li>
       {% endfor %}
     </ol>
@@ -35,9 +34,9 @@
   {% else %}
     {% if owner %}
       {% url 'announcements:new' course.id as new_announcement_url %}
-      {% include "includes/empty_state.html" with empty_title="No announcements yet" empty_message="Publish a welcome or course update to begin the durable course feed." empty_url=new_announcement_url empty_action="Create announcement" %}
+      {% include "includes/empty_state.html" with empty_title="No announcements yet" empty_message="Publish a welcome or course update to begin the durable course feed." empty_url=new_announcement_url empty_action="Create announcement" empty_image="images/generated/empty-communication.webp" empty_width=560 empty_height=420 %}
     {% else %}
-      {% include "includes/empty_state.html" with empty_title="No announcements available" empty_message="Published course updates will appear here." %}
+      {% include "includes/empty_state.html" with empty_title="No announcements available" empty_message="Published course updates will appear here." empty_image="images/generated/empty-communication.webp" empty_width=560 empty_height=420 %}
     {% endif %}
   {% endif %}
 {% endblock %}

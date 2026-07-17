@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ course.code }} | Course Collaboration Platform{% endblock %}
 {% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course course_is_current=True current_label=course.code %}{% endblock %}
 {% block content %}
@@ -12,14 +13,17 @@
       <h1>{{ course.title }}</h1>
       <p class="lede">{{ course.description }}</p>
     </div>
-    <div class="page-actions">
-      <a class="button button-secondary" href="{% url 'courses:edit' course.id %}">Edit course</a>
-      {% if course.status == "DRAFT" %}
-        <form method="post" action="{% url 'courses:publish' course.id %}" data-confirm="Publish this course? Students can discover it when enrolment is open.">
-          {% csrf_token %}
-          <button type="submit">Publish course</button>
-        </form>
-      {% endif %}
+    <div class="course-hero-aside">
+      <img class="course-hero-art" src="{% static 'images/generated/course-learning.webp' %}" width="800" height="600" alt="">
+      <div class="page-actions">
+        <a class="button button-secondary" href="{% url 'courses:edit' course.id %}">Edit course</a>
+        {% if course.status == "DRAFT" %}
+          <form method="post" action="{% url 'courses:publish' course.id %}" data-confirm="Publish this course? Students can discover it when enrolment is open.">
+            {% csrf_token %}
+            <button type="submit">Publish course</button>
+          </form>
+        {% endif %}
+      </div>
     </div>
   </header>
   {% include "includes/course_tabs.html" with active_tab="overview" %}

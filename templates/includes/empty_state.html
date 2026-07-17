@@ -1,7 +1,11 @@
 {% load static %}
 <div class="empty-state">
   {% if show_image != False %}
-    <img src="{% static 'images/generated/empty-learning.webp' %}" width="640" height="480" alt="" loading="lazy">
+    {% if empty_image %}
+      <img src="{% static empty_image %}" width="{{ empty_width|default:640 }}" height="{{ empty_height|default:480 }}" alt="" loading="lazy">
+    {% else %}
+      <img src="{% static 'images/generated/empty-learning.webp' %}" width="640" height="480" alt="" loading="lazy">
+    {% endif %}
   {% endif %}
   {% if empty_title %}<strong class="empty-state-title">{{ empty_title }}</strong>{% endif %}
   <p>{{ empty_message }}</p>

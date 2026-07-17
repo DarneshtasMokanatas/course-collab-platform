@@ -14,6 +14,7 @@
     <ul class="card-list course-card-grid">
       {% for course in page.object_list %}
         <li class="course-card">
+          {% include "includes/course_card_art.html" with code=course.code %}
           <div class="course-card-topline">
             <span class="course-code">{{ course.code }}</span>
             <span class="badge-group">

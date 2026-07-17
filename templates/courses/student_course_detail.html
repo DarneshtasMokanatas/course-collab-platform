@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ course.code }} | Course Collaboration Platform{% endblock %}
 {% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course course_is_current=True current_label=course.code %}{% endblock %}
 {% block content %}
@@ -8,6 +9,9 @@
       <p class="eyebrow">{{ course.code }}</p>
       <h1>{{ course.title }}</h1>
       <p class="lede">{{ course.description }}</p>
+    </div>
+    <div class="course-hero-aside">
+      <img class="course-hero-art" src="{% static 'images/generated/course-learning.webp' %}" width="800" height="600" alt="">
     </div>
   </header>
   {% include "includes/course_tabs.html" with active_tab="overview" %}

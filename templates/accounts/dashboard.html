@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Dashboard | Course Collaboration Platform{% endblock %}
 {% block content %}
-  <section class="dashboard-banner" aria-labelledby="dashboard-heading">
+  <section class="dashboard-banner {% if user.role == 'INSTRUCTOR' %}dashboard-banner--instructor{% else %}dashboard-banner--student{% endif %}" aria-labelledby="dashboard-heading">
     <div class="dashboard-banner-copy">
       <p class="eyebrow">{{ user.get_role_display }} dashboard</p>
       <h1 id="dashboard-heading">Welcome, {{ user.display_name }}.</h1>
@@ -12,10 +12,20 @@
         <p>Keep your courses, deadlines, submissions, announcements, and released results in view.</p>
       {% endif %}
     </div>
-    <img src="{% static 'images/generated/dashboard-learning-banner.webp' %}" width="1400" height="614" alt="">
+    {% if user.role == "INSTRUCTOR" %}
+      <img src="{% static 'images/generated/instructor-progress.webp' %}" width="800" height="600" alt="">
+    {% else %}
+      <img src="{% static 'images/generated/dashboard-learning-banner.webp' %}" width="1400" height="614" alt="">
+    {% endif %}
   </section>
 
   {% if user.role == "STUDENT" %}
+    <dl class="dashboard-pulse" aria-label="Your current learning overview">
+      <div><dt>Courses shown</dt><dd>{{ active_enrolments|length }}</dd></div>
+      <div><dt>Unread updates</dt><dd>{{ unread_announcement_count }}</dd></div>
+      <div><dt>Deadlines shown</dt><dd>{{ upcoming_assignments|length }}</dd></div>
+      <div><dt>Results shown</dt><dd>{{ released_grades|length }}</dd></div>
+    </dl>
     <div class="dashboard-grid">
       <section class="dashboard-section dashboard-section-wide" aria-labelledby="enrolled-courses">
         <div class="section-heading">
@@ -26,6 +36,7 @@
           <ul class="card-list course-card-grid">
             {% for enrolment in active_enrolments %}
               <li class="course-card">
+                {% include "includes/course_card_art.html" with code=enrolment.course.code %}
                 <div class="course-card-topline">
                   <span class="course-code">{{ enrolment.course.code }}</span>
                   {% include "includes/status_badge.html" with status="ACTIVE" label="Enrolled" %}
@@ -147,6 +158,7 @@
         <ul class="card-list course-card-grid">
           {% for row in course_rows %}
             <li class="course-card">
+              {% include "includes/course_card_art.html" with code=row.course.code %}
               <div class="course-card-topline">
                 <span class="course-code">{{ row.course.code }}</span>
                 {% include "includes/status_badge.html" with status=row.course.status %}
