@@ -27,6 +27,6 @@
     </ol>
     {% include "includes/pagination.html" with pagination_label="Submission pages" %}
   {% else %}
-    {% include "includes/empty_state.html" with empty_title="No enrolled students" empty_message="Submission status will appear here after students are actively enrolled in this course." %}
+    {% include "includes/empty_state.html" with empty_title="No enrolled students" empty_message="Submission status will appear here after students are actively enrolled in this course." empty_image="images/generated/empty-coursework.webp" empty_width=560 empty_height=420 %}
   {% endif %}
 {% endblock %}

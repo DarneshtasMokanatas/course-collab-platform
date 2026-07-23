@@ -29,10 +29,7 @@
     </div>
     <aside class="assignment-rules" aria-label="Assignment rules">
       <div class="deadline-callout {% if assignment.due_at <= now %}is-past{% endif %}">
-        <span>{% if assignment.due_at > now %}Due{% else %}Deadline passed{% endif %}</span>
-        <strong>{{ assignment.due_at|date:"M j, Y" }}</strong>
-        <span>{{ assignment.due_at|date:"g:i A" }} MYT</span>
-        <small>{% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</small>
+        {% include "includes/deadline_content.html" with assignment=assignment now=now %}
       </div>
       <dl>
         <div><dt>Maximum score</dt><dd>{{ assignment.max_score }}</dd></div>
@@ -61,19 +58,7 @@
       {% if student_submission %}
         <ol class="version-list submission-versions">
           {% for version in student_submission.versions.all %}
-            <li>
-              <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
-              <div>
-                <div class="badge-group">
-                  <strong>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</strong>
-                  {% if forloop.last %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
-                  {% if version.was_late %}{% include "includes/status_badge.html" with status="LATE" %}{% else %}{% include "includes/status_badge.html" with status="ON_TIME" %}{% endif %}
-                </div>
-                <p>{{ version.original_filename }} · {{ version.size_bytes|filesizeformat }}</p>
-                <p>Server received {{ version.submitted_at|date:"M j, Y, g:i A" }} MYT</p>
-              </div>
-              <a class="button button-secondary" href="{% url 'assignments:submission_version_download' assignment.course_id assignment.id student_submission.id version.id %}">Download</a>
-            </li>
+            {% include "includes/submission_version_row.html" with version=version submission=student_submission assignment=assignment is_current=forloop.last %}
           {% endfor %}
         </ol>
         <div class="grade-panel">
@@ -90,7 +75,7 @@
           {% endif %}
         </div>
       {% else %}
-        {% include "includes/empty_state.html" with empty_title="No submission received" empty_message="Upload your work before the deadline. The server records the accepted submission time." %}
+        {% include "includes/empty_state.html" with empty_title="No submission received" empty_message="Upload your work before the deadline. The server records the accepted submission time." empty_image="images/generated/empty-coursework.webp" empty_width=560 empty_height=420 %}
       {% endif %}
     </section>
   {% endif %}

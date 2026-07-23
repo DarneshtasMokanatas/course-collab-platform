@@ -1,0 +1,4 @@
+<span class="deadline-label">{% if assignment.due_at > now %}Due{% else %}Deadline passed{% endif %}</span>
+<strong>{{ assignment.due_at|date:"M j, Y" }}</strong>
+<span>{{ assignment.due_at|date:"g:i A" }} MYT</span>
+<small>{% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</small>

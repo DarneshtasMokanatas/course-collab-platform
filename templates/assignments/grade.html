@@ -3,7 +3,12 @@
 {% block breadcrumbs %}{% url 'assignments:submission_detail' course.id assignment.id submission.id as parent_url %}{% include "includes/breadcrumbs.html" with course=course parent_url=parent_url parent_label=submission.student.display_name current_label="Create grade revision" %}{% endblock %}
 {% block content %}
   <section class="form-card">
-    <header><p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p><h1>Create grade revision</h1><p class="lede">Grade {{ submission.student.display_name }} against a retained submission version. Maximum score: <strong>{{ assignment.max_score }}</strong>.</p></header>
+    <header><p class="eyebrow">{{ course.code }} · {{ assignment.title }}</p><h1>Create grade revision</h1><p class="lede">Grade {{ submission.student.display_name }} against a retained submission version.</p></header>
+    <dl class="grading-context">
+      <div><dt>Student</dt><dd>{{ submission.student.display_name }}</dd></div>
+      <div><dt>Maximum score</dt><dd>{{ assignment.max_score }}</dd></div>
+      <div><dt>Versions retained</dt><dd>{{ submission.versions.count }}</dd></div>
+    </dl>
     <div class="alert" role="status">Saving creates a private draft revision. Release it separately after review.</div>
     <form method="post" novalidate data-loading>
       {% csrf_token %}

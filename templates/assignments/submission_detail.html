@@ -13,25 +13,15 @@
     <section class="surface content-panel">
       <p class="eyebrow">Immutable files</p>
       <h2>Version history</h2>
-      <ol class="version-list submission-versions">
+      {% if submission.ordered_versions %}
+        <ol class="version-list submission-versions">
         {% for version in submission.ordered_versions %}
-          <li>
-            <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
-            <div>
-              <div class="badge-group">
-                <strong>Version {{ version.version_number }}{% if forloop.last %} (Current){% endif %}</strong>
-                {% if forloop.last %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
-                {% if version.was_late %}{% include "includes/status_badge.html" with status="LATE" %}{% else %}{% include "includes/status_badge.html" with status="ON_TIME" %}{% endif %}
-              </div>
-              <p>{{ version.original_filename }} · {{ version.size_bytes|filesizeformat }}</p>
-              <p>Server received {{ version.submitted_at|date:"M j, Y, g:i A" }} MYT</p>
-            </div>
-            <a class="button button-secondary" href="{% url 'assignments:submission_version_download' course.id assignment.id submission.id version.id %}">Download</a>
-          </li>
-        {% empty %}
-          <li>{% include "includes/empty_state.html" with show_image=False empty_message="No submission versions are available." %}</li>
+          {% include "includes/submission_version_row.html" with version=version submission=submission assignment=assignment is_current=forloop.last %}
         {% endfor %}
-      </ol>
+        </ol>
+      {% else %}
+        {% include "includes/empty_state.html" with show_image=False empty_message="No submission versions are available." %}
+      {% endif %}
     </section>
     <section class="surface content-panel">
       <div class="section-heading"><div><p class="eyebrow">Append-only assessment</p><h2>Grade revisions</h2></div></div>
@@ -66,7 +56,7 @@
           {% endif %}
         </div>
       {% else %}
-        {% include "includes/empty_state.html" with show_image=False empty_message="No grade revision has been recorded." %}
+        {% include "includes/empty_state.html" with empty_title="No grade revisions" empty_message="Create a private draft grade after reviewing the retained submission versions." empty_image="images/generated/empty-coursework.webp" empty_width=560 empty_height=420 %}
       {% endif %}
     </section>
   </div>

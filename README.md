@@ -4,14 +4,53 @@ A server-rendered Django 5.2 LTS modular monolith for student/instructor course
 workspaces. PostgreSQL is authoritative for academic metadata and immutable
 version history; uploaded bytes live in protected file storage.
 
-## WSL requirements
+## Local development requirements
 
-- WSL2 Ubuntu with the repository stored in the Linux filesystem
 - Python 3.13 managed by `uv`
 - Docker Desktop/Engine with Compose
 - PostgreSQL 18 through the included Compose service
 
-## Local setup
+Choose one of the supported local environments below. The application server
+runs directly on the host; Docker Compose runs PostgreSQL only.
+
+### Windows (PowerShell)
+
+Install these prerequisites first:
+
+- [Python 3.13](https://www.python.org/downloads/windows/) (select **Add Python to PATH** during installation)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/), started and using Linux containers
+
+Clone the repository to a normal local directory such as
+`C:\Projects\course-collab-platform` (not a cloud-synced folder), then open
+PowerShell in that directory and run:
+
+```powershell
+Copy-Item .env.example .env
+# Replace DJANGO_SECRET_KEY in .env with a long random local value.
+uv sync
+docker compose up -d db
+docker compose ps
+uv run python manage.py migrate
+uv run python manage.py seed_demo
+uv run python manage.py runserver
+```
+
+Open <http://127.0.0.1:8000/>. `seed_demo` is idempotent and prints the
+non-production demo password. Never run it against production or reuse its
+credentials.
+
+If port 5432 is already in use on Windows, stop the local PostgreSQL service
+using it, or change both the host port in `compose.yaml` and the port in
+`DATABASE_URL` in `.env` to the same unused value. If Docker Desktop is not
+running, start it before `docker compose up -d db`.
+
+### WSL2 (Ubuntu)
+
+Keep the repository in the Linux filesystem (for example,
+`~/projects/course-collab-platform`) rather than under `/mnt/c` for better file
+performance. Install Python 3.13, `uv`, and Docker Desktop with WSL integration
+enabled, then run:
 
 ```bash
 cp .env.example .env

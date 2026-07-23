@@ -31,7 +31,7 @@
   <section aria-labelledby="student-participation">
     <div class="section-heading"><div><p class="eyebrow">Student overview</p><h2 id="student-participation">Student participation</h2></div></div>
     {% if rows %}
-      <div class="table-scroll responsive-table" tabindex="0" role="region" aria-label="Student participation table">
+      <div class="table-scroll responsive-table" tabindex="0" role="region" aria-label="Student participation table" data-responsive-table>
         <table>
           <caption>Course workspace activity and assignment outcomes for active enrolments.</caption>
           <thead>
@@ -48,25 +48,29 @@
           <tbody>
             {% for row in rows %}
               <tr>
-                <th scope="row" data-label="Student">{{ row.student.display_name }}</th>
+                <th scope="row" data-label="Student"><span class="table-value">{{ row.student.display_name }}</span></th>
                 <td data-label="Latest platform activity">
-                  {% if row.latest_activity %}
-                    {{ row.latest_activity|date:"M j, Y, g:i A" }} MYT
-                    {% if row.is_inactive %}{% include "includes/status_badge.html" with status="INACTIVE" %}{% endif %}
-                  {% else %}
-                    No recorded activity {% include "includes/status_badge.html" with status="INACTIVE" %}
-                  {% endif %}
+                  <span class="table-value">
+                    {% if row.latest_activity %}
+                      {{ row.latest_activity|date:"M j, Y, g:i A" }} MYT
+                      {% if row.is_inactive %}{% include "includes/status_badge.html" with status="INACTIVE" %}{% endif %}
+                    {% else %}
+                      No recorded activity {% include "includes/status_badge.html" with status="INACTIVE" %}
+                    {% endif %}
+                  </span>
                 </td>
-                <td data-label="Submitted">{{ row.submitted }}</td>
-                <td data-label="Missing">{{ row.missing }}</td>
-                <td data-label="Late">{{ row.late }}</td>
-                <td data-label="Graded">{{ row.graded }}</td>
+                <td data-label="Submitted"><span class="table-value outcome-count outcome-count--submitted">{{ row.submitted }}</span></td>
+                <td data-label="Missing"><span class="table-value outcome-count outcome-count--missing">{{ row.missing }}</span></td>
+                <td data-label="Late"><span class="table-value outcome-count outcome-count--late">{{ row.late }}</span></td>
+                <td data-label="Graded"><span class="table-value outcome-count outcome-count--graded">{{ row.graded }}</span></td>
                 <td data-label="Released results">
-                  {% if row.released_average is not None %}
-                    Total {{ row.released_total }} · Average {{ row.released_average|floatformat:2 }}
-                  {% else %}
-                    No released grade
-                  {% endif %}
+                  <span class="table-value">
+                    {% if row.released_average is not None %}
+                      Total {{ row.released_total }} · Average {{ row.released_average|floatformat:2 }}
+                    {% else %}
+                      No released grade
+                    {% endif %}
+                  </span>
                 </td>
               </tr>
             {% endfor %}

@@ -1,0 +1,13 @@
+<li>
+  <span class="version-marker" aria-hidden="true">{{ version.version_number }}</span>
+  <div>
+    <div class="badge-group">
+      <strong>Version {{ version.version_number }}{% if is_current %} (Current){% endif %}</strong>
+      {% if is_current %}{% include "includes/status_badge.html" with status="CURRENT" %}{% endif %}
+      {% if version.was_late %}{% include "includes/status_badge.html" with status="LATE" %}{% else %}{% include "includes/status_badge.html" with status="ON_TIME" %}{% endif %}
+    </div>
+    <p class="version-filename">{{ version.original_filename }} <span aria-hidden="true">·</span> {{ version.size_bytes|filesizeformat }}</p>
+    <p>Server received <time datetime="{{ version.submitted_at|date:'c' }}">{{ version.submitted_at|date:"M j, Y, g:i A" }} MYT</time></p>
+  </div>
+  <a class="button button-secondary" href="{% url 'assignments:submission_version_download' assignment.course_id assignment.id submission.id version.id %}">Download version {{ version.version_number }}</a>
+</li>

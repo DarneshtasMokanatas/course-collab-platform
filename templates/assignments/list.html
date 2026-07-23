@@ -20,7 +20,7 @@
               {% include "includes/status_badge.html" with status=assignment.status %}
               {% if assignment.section %}<span class="meta-chip">{{ assignment.section.title }}</span>{% endif %}
             </div>
-            <h2><a href="{% url 'assignments:detail' course.id assignment.id %}">{{ assignment.title }}</a></h2>
+            <h2>{{ assignment.title }}</h2>
             <p>{{ assignment.instructions|truncatewords:28 }}</p>
             <dl class="metadata-grid">
               <div><dt>Maximum score</dt><dd>{{ assignment.max_score }}</dd></div>
@@ -29,10 +29,7 @@
             </dl>
           </div>
           <aside class="deadline-panel {% if assignment.due_at <= now %}is-past{% endif %}">
-            <span class="deadline-label">{% if assignment.due_at > now %}Due{% else %}Deadline passed{% endif %}</span>
-            <strong>{{ assignment.due_at|date:"M j, Y" }}</strong>
-            <span>{{ assignment.due_at|date:"g:i A" }} MYT</span>
-            <span>{% if assignment.due_at > now %}Due in {{ assignment.due_at|timeuntil:now }}{% else %}Due {{ assignment.due_at|timesince:now }} ago{% endif %}</span>
+            {% include "includes/deadline_content.html" with assignment=assignment now=now %}
             <a href="{% url 'assignments:detail' course.id assignment.id %}">View assignment</a>
           </aside>
         </li>
@@ -42,9 +39,9 @@
   {% else %}
     {% if owner %}
       {% url 'assignments:new' course.id as new_assignment_url %}
-      {% include "includes/empty_state.html" with empty_title="No assignments yet" empty_message="Create a draft with its deadline, score, file rules, and submission policy, then publish it separately." empty_url=new_assignment_url empty_action="Create assignment" %}
+      {% include "includes/empty_state.html" with empty_title="No assignments yet" empty_message="Create a draft with its deadline, score, file rules, and submission policy, then publish it separately." empty_url=new_assignment_url empty_action="Create assignment" empty_image="images/generated/empty-coursework.webp" empty_width=560 empty_height=420 %}
     {% else %}
-      {% include "includes/empty_state.html" with empty_title="No assignments available" empty_message="Published coursework will appear here when your instructor adds it." %}
+      {% include "includes/empty_state.html" with empty_title="No assignments available" empty_message="Published coursework will appear here when your instructor adds it." empty_image="images/generated/empty-coursework.webp" empty_width=560 empty_height=420 %}
     {% endif %}
   {% endif %}
 {% endblock %}
