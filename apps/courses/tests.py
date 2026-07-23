@@ -5,6 +5,7 @@ from django.test import TestCase
 
 from apps.announcements.models import Announcement
 from apps.assignments.models import Assignment, GradeRevision, Submission
+from apps.audit.models import AuditEvent
 from apps.materials.models import MaterialVersion
 
 from .models import Course, CourseSection, Enrolment
@@ -76,5 +77,36 @@ class SeedDemoTests(TestCase):
         )
         self.assertEqual(
             GradeRevision.objects.filter(submission__assignment__course=course).count(),
+            1,
+        )
+
+    def test_seed_demo_sets_initial_membership_once_without_overwriting(self):
+        user_model = get_user_model()
+        call_command("seed_demo", verbosity=0)
+        member = user_model.objects.get(username="demo.student2")
+        self.assertEqual(
+            member.membership_status,
+            user_model.MembershipStatus.MEMBER,
+        )
+        event = AuditEvent.objects.get(
+            action="USER_MEMBERSHIP_CHANGED",
+            object_id=member.id,
+        )
+        self.assertIsNone(event.actor_id)
+        self.assertEqual(event.metadata["source"], "seed_demo")
+
+        member.membership_status = user_model.MembershipStatus.NON_MEMBER
+        member.save(update_fields=["membership_status"])
+        call_command("seed_demo", verbosity=0)
+        member.refresh_from_db()
+        self.assertEqual(
+            member.membership_status,
+            user_model.MembershipStatus.NON_MEMBER,
+        )
+        self.assertEqual(
+            AuditEvent.objects.filter(
+                action="USER_MEMBERSHIP_CHANGED",
+                object_id=member.id,
+            ).count(),
             1,
         )

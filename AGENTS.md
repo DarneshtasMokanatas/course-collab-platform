@@ -60,7 +60,7 @@ The system must remain easy to understand, easy to demonstrate, and realistic fo
 - No Kubernetes, message broker, Redis, Celery, or microservices.
 - No WebSocket infrastructure for a feed that works correctly with normal HTTP.
 
-### 2.4 Week 8 collaboration-profile requirement change
+### 2.4 Week 8 collaboration and membership requirement change
 
 Student collaboration profiles extend the accounts domain without adding messaging,
 matching, endorsements, proficiency rankings, or scheduling infrastructure.
@@ -77,6 +77,12 @@ matching, endorsements, proficiency rankings, or scheduling infrastructure.
 - Public collaboration profile pages show only display name, skills, collaboration
   mode, and availability. They never expose email, authentication, membership, or
   enrolment-administration data.
+
+Membership is a separate account classification controlled through trusted staff
+administration. Its initial values are `NON_MEMBER` and `MEMBER`; existing and new
+users default to `NON_MEMBER`. Actual membership changes create append-only audit
+events. Ordinary account and profile forms never accept membership state. No
+payment, billing, renewal, checkout, or subscription platform is in scope.
 
 ## 3. Architecture decision
 

@@ -14,6 +14,7 @@ from apps.assignments.models import (
     Submission,
     SubmissionVersion,
 )
+from apps.audit.models import AuditEvent
 from apps.courses.models import Course, CourseSection, Enrolment
 from apps.materials.models import Material, MaterialVersion
 
@@ -47,6 +48,7 @@ class Command(BaseCommand):
             "student2@example.test",
             "Demo Student Two",
             user_model.Role.STUDENT,
+            user_model.MembershipStatus.MEMBER,
         )
 
         course, _ = Course.objects.update_or_create(
@@ -175,13 +177,48 @@ class Command(BaseCommand):
         self.stdout.write(f"Demo password: {DEMO_PASSWORD}")
         self.stdout.write(f"Upcoming assignment: {upcoming.title}")
 
-    def upsert_user(self, user_model, username, email, display_name, role):
-        user, _ = user_model.objects.update_or_create(
+    def upsert_user(
+        self,
+        user_model,
+        username,
+        email,
+        display_name,
+        role,
+        membership_status=None,
+    ):
+        membership_status = membership_status or user_model.MembershipStatus.NON_MEMBER
+        user, created = user_model.objects.update_or_create(
             username=username,
-            defaults={"email": email, "display_name": display_name, "role": role},
+            defaults={
+                "email": email,
+                "display_name": display_name,
+                "role": role,
+            },
         )
+        if created and membership_status != user.membership_status:
+            previous_membership = user.membership_status
+            user.membership_status = membership_status
+            user.save(update_fields=["membership_status"])
+            AuditEvent.objects.create(
+                actor=None,
+                action="USER_MEMBERSHIP_CHANGED",
+                object_type="User",
+                object_id=user.id,
+                metadata={
+                    "from": previous_membership,
+                    "to": membership_status,
+                    "source": "seed_demo",
+                },
+            )
         user.set_password(DEMO_PASSWORD)
-        user.save(update_fields=["password", "email", "display_name", "role"])
+        user.save(
+            update_fields=[
+                "password",
+                "email",
+                "display_name",
+                "role",
+            ]
+        )
         return user
 
     def upsert_section(self, course, position, title):

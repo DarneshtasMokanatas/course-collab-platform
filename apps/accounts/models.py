@@ -13,9 +13,18 @@ class User(AbstractUser):
         STUDENT = "STUDENT", "Student"
         INSTRUCTOR = "INSTRUCTOR", "Instructor"
 
+    class MembershipStatus(models.TextChoices):
+        NON_MEMBER = "NON_MEMBER", "Non-member"
+        MEMBER = "MEMBER", "Member"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField()
     role = models.CharField(max_length=10, choices=Role.choices)
+    membership_status = models.CharField(
+        max_length=10,
+        choices=MembershipStatus.choices,
+        default=MembershipStatus.NON_MEMBER,
+    )
     display_name = models.CharField(max_length=150)
     REQUIRED_FIELDS = ["email", "display_name", "role"]
 
@@ -28,6 +37,10 @@ class User(AbstractUser):
                 Lower("username"), name="accounts_user_username_ci_uniq"
             ),
             models.UniqueConstraint(Lower("email"), name="accounts_user_email_ci_uniq"),
+            models.CheckConstraint(
+                condition=models.Q(membership_status__in=["NON_MEMBER", "MEMBER"]),
+                name="accounts_user_membership_valid",
+            ),
         ]
 
     def clean(self):
