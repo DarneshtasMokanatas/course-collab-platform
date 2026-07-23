@@ -9,7 +9,7 @@ from apps.audit.models import AuditEvent
 from apps.courses.models import Course, Enrolment
 
 from .admin import UserAdmin, UserRoleAdminForm
-from .models import User
+from .models import StudentCollaborationProfile, User
 
 
 class UserRoleAdminHardeningTests(TestCase):
@@ -80,4 +80,7 @@ class UserRoleAdminHardeningTests(TestCase):
         self.assertEqual(
             event.metadata,
             {"from": User.Role.STUDENT, "to": User.Role.INSTRUCTOR},
+        )
+        self.assertFalse(
+            StudentCollaborationProfile.objects.filter(user=target).exists()
         )

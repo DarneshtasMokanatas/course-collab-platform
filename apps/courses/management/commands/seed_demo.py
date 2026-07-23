@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from apps.accounts.models import Skill, StudentCollaborationProfile
 from apps.announcements.models import Announcement
 from apps.assignments.models import (
     Assignment,
@@ -69,6 +70,18 @@ class Command(BaseCommand):
                 student=student,
                 defaults={"status": Enrolment.Status.ACTIVE, "withdrawn_at": None},
             )
+        self.upsert_collaboration_profile(
+            student_one,
+            StudentCollaborationProfile.CollaborationMode.ONLINE,
+            "Weekdays after 6 PM",
+            ("Python", "Academic writing"),
+        )
+        self.upsert_collaboration_profile(
+            student_two,
+            StudentCollaborationProfile.CollaborationMode.OFFLINE,
+            "Saturday mornings",
+            ("Public speaking", "Research"),
+        )
 
         material, _ = Material.objects.update_or_create(
             course=course,
@@ -178,6 +191,25 @@ class Command(BaseCommand):
             defaults={"title": title, "description": f"Demo section {position}."},
         )
         return section
+
+    def upsert_collaboration_profile(
+        self, student, collaboration_mode, availability, skill_names
+    ):
+        profile, _ = StudentCollaborationProfile.objects.update_or_create(
+            user=student,
+            defaults={
+                "collaboration_mode": collaboration_mode,
+                "availability": availability,
+            },
+        )
+        skills = []
+        for name in skill_names:
+            skill = Skill.objects.filter(name__iexact=name).first()
+            if skill is None:
+                skill = Skill.objects.create(name=name)
+            skills.append(skill)
+        profile.skills.set(skills)
+        return profile
 
     def upsert_assignment(
         self, course, section, instructor, title, due_at, allow_late=False

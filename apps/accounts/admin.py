@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 
 from apps.audit.models import AuditEvent
 
-from .models import User
+from .models import Skill, StudentCollaborationProfile, StudentProfileSkill, User
 
 
 class UserRoleAdminForm(UserChangeForm):
@@ -51,6 +51,10 @@ class UserAdmin(DjangoUserAdmin):
                 User.objects.filter(pk=obj.pk).values_list("role", flat=True).first()
             )
         super().save_model(request, obj, form, change)
+        if obj.role == User.Role.STUDENT:
+            StudentCollaborationProfile.objects.get_or_create(user=obj)
+        elif previous_role == User.Role.STUDENT:
+            StudentCollaborationProfile.objects.filter(user=obj).delete()
         if previous_role and previous_role != obj.role:
             AuditEvent.objects.create(
                 actor=request.user,
@@ -59,3 +63,26 @@ class UserAdmin(DjangoUserAdmin):
                 object_id=obj.id,
                 metadata={"from": previous_role, "to": obj.role},
             )
+
+
+@admin.register(Skill)
+class SkillAdmin(admin.ModelAdmin):
+    list_display = ("name", "created_at", "updated_at")
+    search_fields = ("name",)
+
+
+class StudentProfileSkillInline(admin.TabularInline):
+    model = StudentProfileSkill
+    extra = 0
+
+
+@admin.register(StudentCollaborationProfile)
+class StudentCollaborationProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "collaboration_mode", "availability", "updated_at")
+    list_filter = ("collaboration_mode",)
+    search_fields = ("user__display_name", "user__username")
+    readonly_fields = ("user", "created_at", "updated_at")
+    inlines = (StudentProfileSkillInline,)
+
+    def has_delete_permission(self, request, obj=None):
+        return False

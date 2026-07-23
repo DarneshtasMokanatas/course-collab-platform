@@ -60,6 +60,24 @@ The system must remain easy to understand, easy to demonstrate, and realistic fo
 - No Kubernetes, message broker, Redis, Celery, or microservices.
 - No WebSocket infrastructure for a feed that works correctly with normal HTTP.
 
+### 2.4 Week 8 collaboration-profile requirement change
+
+Student collaboration profiles extend the accounts domain without adding messaging,
+matching, endorsements, proficiency rankings, or scheduling infrastructure.
+
+- Every student has one collaboration profile.
+- A profile records exactly one preferred collaboration mode: `ONLINE` or `OFFLINE`.
+- Availability is optional, validated text with a maximum length of 300 characters.
+- Skills are reusable normalized rows with UUID primary keys and case-insensitively
+  unique names. Profiles use an explicit unique profile-to-skill relationship.
+- Students may view and edit their own profile. Staff may view profiles for
+  maintenance. Another student may view a profile only while both students have
+  active enrolments in the same non-archived course. An instructor may view an
+  actively enrolled student's profile only for a non-archived course they own.
+- Public collaboration profile pages show only display name, skills, collaboration
+  mode, and availability. They never expose email, authentication, membership, or
+  enrolment-administration data.
+
 ## 3. Architecture decision
 
 ### 3.1 Selected stack

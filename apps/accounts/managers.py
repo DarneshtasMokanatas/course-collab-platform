@@ -1,4 +1,6 @@
+from django.apps import apps
 from django.contrib.auth.models import UserManager as DjangoUserManager
+from django.db import transaction
 
 
 class UserManager(DjangoUserManager):
@@ -9,8 +11,14 @@ class UserManager(DjangoUserManager):
             raise ValueError("The username is required")
         if not email:
             raise ValueError("The email address is required")
-        user = self.model(username=username, email=email, **extra_fields)
-        user.set_password(password)
-        user.full_clean()
-        user.save(using=self._db)
+        with transaction.atomic(using=self._db):
+            user = self.model(username=username, email=email, **extra_fields)
+            user.set_password(password)
+            user.full_clean()
+            user.save(using=self._db)
+            if user.role == user.Role.STUDENT:
+                profile_model = apps.get_model(
+                    "accounts", "StudentCollaborationProfile"
+                )
+                profile_model.objects.using(self._db).create(user=user)
         return user

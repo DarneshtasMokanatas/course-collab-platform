@@ -72,3 +72,33 @@ def course_enrol(request, course_id):
         raise Http404 from error
     messages.success(request, "You are enrolled in this course.")
     return redirect("courses:detail", course_id=course.id)
+
+
+@login_required
+def course_participants(request, course_id):
+    course = get_object_or_404(Course, pk=course_id)
+    can_manage = request.user.is_staff or (
+        request.user.role == request.user.Role.INSTRUCTOR
+        and course.instructor_id == request.user.id
+    )
+    enrolled = (
+        request.user.role == request.user.Role.STUDENT
+        and Enrolment.objects.filter(
+            course=course,
+            student=request.user,
+            status=Enrolment.Status.ACTIVE,
+        ).exists()
+    )
+    if course.status == Course.Status.ARCHIVED or not (can_manage or enrolled):
+        raise Http404
+    participants = (
+        Enrolment.objects.filter(course=course, status=Enrolment.Status.ACTIVE)
+        .select_related("student")
+        .order_by("student__display_name", "student__username")
+    )
+    page = Paginator(participants, 25).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "courses/participants.html",
+        {"course": course, "page": page},
+    )

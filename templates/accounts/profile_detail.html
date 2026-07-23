@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ profile.user.display_name }} | Collaboration profile{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div class="page-header-copy">
+      <p class="eyebrow">Student collaboration profile</p>
+      <h1>{{ profile.user.display_name }}</h1>
+      <p class="lede">Skills, preferred collaboration mode, and general availability shared with active course collaborators.</p>
+    </div>
+    {% if is_own_profile %}
+      <div class="page-actions">
+        <a class="button" href="{% url 'accounts:profile_edit' %}">Edit profile</a>
+      </div>
+    {% endif %}
+  </header>
+
+  <div class="content-grid">
+    <section class="surface content-panel">
+      <p class="eyebrow">Working preference</p>
+      <h2>Collaboration mode</h2>
+      <p>{{ profile.get_collaboration_mode_display }}</p>
+    </section>
+    <section class="surface content-panel">
+      <p class="eyebrow">Typical schedule</p>
+      <h2>Availability</h2>
+      {% if profile.availability %}
+        <p>{{ profile.availability }}</p>
+      {% else %}
+        <p class="context-note">No availability has been shared yet.</p>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="surface content-panel">
+    <p class="eyebrow">Knowledge and experience</p>
+    <h2>Skills and expertise</h2>
+    {% if profile.skills.all %}
+      <ul class="tag-list" aria-label="Skills">
+        {% for skill in profile.skills.all %}<li class="meta-chip">{{ skill.name }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="context-note">No skills have been added yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

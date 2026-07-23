@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Participants | {{ course.code }}{% endblock %}
+{% block breadcrumbs %}{% include "includes/breadcrumbs.html" with course=course current_label="Participants" %}{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div class="page-header-copy">
+      <p class="eyebrow">{{ course.code }}</p>
+      <h1>Course participants</h1>
+      <p class="lede">Collaboration profiles for students with an active enrolment in this course.</p>
+    </div>
+  </header>
+  {% include "includes/course_tabs.html" with active_tab="participants" %}
+  {% if page.object_list %}
+    <ol class="card-list participant-list">
+      {% for enrolment in page.object_list %}
+        <li>
+          <div>
+            <p class="eyebrow">Student</p>
+            <h2>{{ enrolment.student.display_name }}</h2>
+            <p>View the collaboration details this student has chosen to share.</p>
+          </div>
+          <a class="button button-secondary" href="{% url 'accounts:profile_detail' enrolment.student.id %}">View profile</a>
+        </li>
+      {% endfor %}
+    </ol>
+    {% include "includes/pagination.html" with pagination_label="Participant pages" %}
+  {% else %}
+    {% include "includes/empty_state.html" with show_image=False empty_title="No active participants" empty_message="Active student enrolments will appear here." %}
+  {% endif %}
+{% endblock %}

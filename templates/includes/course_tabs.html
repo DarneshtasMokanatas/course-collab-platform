@@ -3,6 +3,7 @@
   <a href="{% url 'announcements:list' course.id %}" {% if active_tab == "announcements" %}aria-current="page"{% endif %}>Announcements</a>
   <a href="{% url 'materials:list' course.id %}" {% if active_tab == "materials" %}aria-current="page"{% endif %}>Materials</a>
   <a href="{% url 'assignments:list' course.id %}" {% if active_tab == "assignments" %}aria-current="page"{% endif %}>Assignments</a>
+  <a href="{% url 'courses:participants' course.id %}" {% if active_tab == "participants" %}aria-current="page"{% endif %}>Participants</a>
   {% if user.role == "INSTRUCTOR" and course.instructor_id == user.id %}
     <a href="{% url 'analytics:course' course.id %}" {% if active_tab == "analytics" %}aria-current="page"{% endif %}>Platform activity</a>
   {% endif %}
