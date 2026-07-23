@@ -18,6 +18,7 @@ from apps.audit.models import AuditEvent
 from apps.courses.models import Course, Enrolment
 
 from .models import Assignment, SubmissionVersion
+from .policies import resubmission_policy
 from .services import submit_first_version, submit_resubmission
 
 PDF_HEADER = b"%PDF-1.4\n"
@@ -150,6 +151,270 @@ class ResubmissionWorkflowTests(TestCase):
             ).exists()
         )
 
+    def test_non_member_initial_submission_is_free_then_two_resubmissions_allowed(self):
+        assignment = self.assignment()
+        first = submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf", b"first"),
+        )
+        initial_policy = resubmission_policy(
+            user=self.student,
+            assignment=assignment,
+            submission=first.submission,
+            now=timezone.now(),
+        )
+        self.assertEqual(initial_policy.resubmissions_used, 0)
+        self.assertEqual(initial_policy.resubmissions_remaining, 2)
+
+        second = submit_resubmission(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("second.pdf", b"second"),
+        )
+        third = submit_resubmission(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("third.pdf", b"third"),
+        )
+
+        self.assertEqual((second.version_number, third.version_number), (2, 3))
+        with patch("apps.assignments.services.default_storage.save") as save_mock:
+            with self.assertRaisesMessage(ValidationError, "non-member limit"):
+                submit_resubmission(
+                    actor=self.student,
+                    assignment=assignment,
+                    upload=self.upload("fourth.pdf", b"fourth"),
+                )
+        save_mock.assert_not_called()
+        self.assertEqual(
+            list(
+                first.submission.versions.order_by("version_number").values_list(
+                    "version_number",
+                    flat=True,
+                )
+            ),
+            [1, 2, 3],
+        )
+
+    def test_member_can_exceed_three_versions_before_deadline(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment()
+        first = submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf", b"first"),
+        )
+
+        versions = [
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload(f"version-{number}.pdf", str(number).encode()),
+            )
+            for number in range(2, 6)
+        ]
+
+        self.assertEqual(
+            [version.version_number for version in versions],
+            [2, 3, 4, 5],
+        )
+        self.assertEqual(first.submission.versions.count(), 5)
+
+    def test_member_is_still_rejected_at_and_after_deadline(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        due_at = timezone.now() + timedelta(hours=1)
+        for label, attempted_at in (
+            ("exact", due_at),
+            ("after", due_at + timedelta(microseconds=1)),
+        ):
+            assignment = self.assignment(title=label, due_at=due_at)
+            submit_first_version(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload(f"{label}-first.pdf"),
+            )
+            with patch(
+                "apps.assignments.services.timezone.now",
+                return_value=attempted_at,
+            ):
+                with self.assertRaisesMessage(ValidationError, "before the deadline"):
+                    submit_resubmission(
+                        actor=self.student,
+                        assignment=assignment,
+                        upload=self.upload(f"{label}-second.pdf"),
+                    )
+            self.assertEqual(assignment.submissions.get().versions.count(), 1)
+
+    def test_membership_does_not_bypass_assignment_or_enrolment_rules(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment(allow_resubmission=False)
+        submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload(),
+        )
+        with self.assertRaisesMessage(ValidationError, "not enabled"):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload("member-disabled.pdf"),
+            )
+
+        self.other_student.membership_status = (
+            self.other_student.MembershipStatus.MEMBER
+        )
+        self.other_student.save(update_fields=["membership_status"])
+        with self.assertRaisesMessage(ValidationError, "first version"):
+            submit_resubmission(
+                actor=self.other_student,
+                assignment=assignment,
+                upload=self.upload("other-students-work.pdf"),
+            )
+        self.assertEqual(assignment.submissions.get().versions.count(), 1)
+
+        enrolment = Enrolment.objects.get(course=self.course, student=self.student)
+        enrolment.status = Enrolment.Status.WITHDRAWN
+        enrolment.save(update_fields=["status"])
+        with self.assertRaises(PermissionDenied):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload("member-withdrawn.pdf"),
+            )
+
+    def test_existing_long_history_stays_immutable_when_member_becomes_non_member(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment()
+        first = submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf", b"first"),
+        )
+        for number in range(2, 5):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload(f"version-{number}.pdf", str(number).encode()),
+            )
+        original_ids = list(
+            first.submission.versions.order_by("version_number").values_list(
+                "id",
+                flat=True,
+            )
+        )
+        self.student.membership_status = self.student.MembershipStatus.NON_MEMBER
+        self.student.save(update_fields=["membership_status"])
+
+        with self.assertRaisesMessage(ValidationError, "non-member limit"):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload("blocked.pdf"),
+            )
+
+        self.assertEqual(
+            list(
+                first.submission.versions.order_by("version_number").values_list(
+                    "id",
+                    flat=True,
+                )
+            ),
+            original_ids,
+        )
+
+    def test_service_uses_fresh_database_membership_instead_of_stale_actor(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment()
+        submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf"),
+        )
+        for number in range(2, 4):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload(f"version-{number}.pdf"),
+            )
+
+        type(self.student).objects.filter(pk=self.student.pk).update(
+            membership_status=self.student.MembershipStatus.NON_MEMBER
+        )
+        self.assertEqual(
+            self.student.membership_status,
+            self.student.MembershipStatus.MEMBER,
+        )
+        with patch("apps.assignments.services.default_storage.save") as save_mock:
+            with self.assertRaisesMessage(ValidationError, "non-member limit"):
+                submit_resubmission(
+                    actor=self.student,
+                    assignment=assignment,
+                    upload=self.upload("stale-member.pdf"),
+                )
+        save_mock.assert_not_called()
+        self.assertEqual(assignment.submissions.get().versions.count(), 3)
+
+        type(self.student).objects.filter(pk=self.student.pk).update(
+            membership_status=self.student.MembershipStatus.MEMBER
+        )
+        self.student.membership_status = self.student.MembershipStatus.NON_MEMBER
+        fourth = submit_resubmission(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("stale-non-member.pdf"),
+        )
+        self.assertEqual(fourth.version_number, 4)
+
+    def test_post_error_rerender_refreshes_membership_policy(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment()
+        submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf"),
+        )
+        for number in range(2, 4):
+            submit_resubmission(
+                actor=self.student,
+                assignment=assignment,
+                upload=self.upload(f"version-{number}.pdf"),
+            )
+        self.client.force_login(self.student)
+        real_submit_resubmission = submit_resubmission
+
+        def downgrade_then_submit(**kwargs):
+            type(self.student).objects.filter(pk=self.student.pk).update(
+                membership_status=self.student.MembershipStatus.NON_MEMBER
+            )
+            return real_submit_resubmission(**kwargs)
+
+        with patch(
+            "apps.assignments.views.submit_resubmission",
+            side_effect=downgrade_then_submit,
+        ):
+            response = self.client.post(
+                reverse(
+                    "assignments:submit",
+                    args=[self.course.id, assignment.id],
+                ),
+                {"file": self.upload("blocked-after-downgrade.pdf")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "non-member limit of 2 resubmissions")
+        self.assertContains(response, "2 resubmissions allowed.")
+        self.assertNotContains(
+            response,
+            "Unlimited resubmissions before the deadline.",
+        )
+
     def test_resubmission_requires_policy_existing_submission_and_active_enrolment(
         self,
     ):
@@ -273,6 +538,74 @@ class ResubmissionWorkflowTests(TestCase):
             first.sha256,
             hashlib.sha256(PDF_HEADER + b"first").hexdigest(),
         )
+
+    def test_submission_ui_displays_membership_counters_and_limit_message(self):
+        assignment = self.assignment()
+        submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("first.pdf"),
+        )
+        submit_resubmission(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("second.pdf"),
+        )
+        self.client.force_login(self.student)
+        detail_url = reverse(
+            "assignments:detail",
+            args=[self.course.id, assignment.id],
+        )
+
+        response = self.client.get(detail_url)
+        self.assertContains(response, "2 resubmissions allowed.")
+        self.assertContains(response, "1 of 2")
+        self.assertContains(response, "Resubmissions remaining")
+        self.assertContains(response, "Version 2")
+
+        submit_resubmission(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload("third.pdf"),
+        )
+        response = self.client.get(detail_url)
+        self.assertContains(response, "2 of 2")
+        self.assertContains(response, "limit has been reached")
+        self.assertNotContains(response, ">Submit a new version</a>")
+
+        blocked = self.client.get(
+            reverse("assignments:submit", args=[self.course.id, assignment.id]),
+            follow=True,
+        )
+        self.assertContains(blocked, "non-member limit of 2 resubmissions")
+
+    def test_member_ui_says_unlimited_only_before_deadline(self):
+        self.student.membership_status = self.student.MembershipStatus.MEMBER
+        self.student.save(update_fields=["membership_status"])
+        assignment = self.assignment()
+        submit_first_version(
+            actor=self.student,
+            assignment=assignment,
+            upload=self.upload(),
+        )
+        self.client.force_login(self.student)
+
+        for url in (
+            reverse(
+                "assignments:detail",
+                args=[self.course.id, assignment.id],
+            ),
+            reverse(
+                "assignments:submit",
+                args=[self.course.id, assignment.id],
+            ),
+        ):
+            response = self.client.get(url)
+            self.assertContains(
+                response,
+                "Unlimited resubmissions before the deadline.",
+            )
+            self.assertNotContains(response, "Resubmissions remaining")
 
     def test_direct_resubmission_page_redirects_when_policy_or_deadline_blocks_it(self):
         disabled = self.assignment(allow_resubmission=False)
@@ -519,6 +852,74 @@ class ConcurrentResubmissionTests(TransactionTestCase):
             version_numbers = sorted(executor.map(submit, (b"second", b"third")))
 
         self.assertEqual(version_numbers, [2, 3])
+        self.assertEqual(
+            list(
+                self.assignment.submissions.get()
+                .versions.order_by("version_number")
+                .values_list("version_number", flat=True)
+            ),
+            [1, 2, 3],
+        )
+
+    def test_concurrent_requests_cannot_bypass_non_member_limit(self):
+        submit_resubmission(
+            actor=self.student,
+            assignment=self.assignment,
+            upload=SimpleUploadedFile(
+                "second.pdf",
+                PDF_HEADER + b"second",
+                content_type="application/pdf",
+            ),
+        )
+        barrier = Barrier(2)
+        from . import services
+
+        original_file_metadata = services._file_metadata
+
+        def synchronized_metadata(assignment, upload):
+            metadata = original_file_metadata(assignment, upload)
+            barrier.wait(timeout=5)
+            return metadata
+
+        def submit(content):
+            connections.close_all()
+            try:
+                version = submit_resubmission(
+                    actor=self.student,
+                    assignment=self.assignment,
+                    upload=SimpleUploadedFile(
+                        f"{content.decode()}.pdf",
+                        PDF_HEADER + content,
+                        content_type="application/pdf",
+                    ),
+                )
+                return "accepted", version.version_number
+            except ValidationError as error:
+                return "rejected", str(error)
+            finally:
+                connections.close_all()
+
+        with (
+            patch(
+                "apps.assignments.services._file_metadata",
+                side_effect=synchronized_metadata,
+            ),
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            results = list(executor.map(submit, (b"third-a", b"third-b")))
+
+        self.assertEqual(
+            sorted(result[0] for result in results),
+            ["accepted", "rejected"],
+        )
+        self.assertIn(
+            3,
+            [result[1] for result in results if result[0] == "accepted"],
+        )
+        self.assertIn(
+            "non-member limit",
+            " ".join(str(result[1]) for result in results if result[0] == "rejected"),
+        )
         self.assertEqual(
             list(
                 self.assignment.submissions.get()

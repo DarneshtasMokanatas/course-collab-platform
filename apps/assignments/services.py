@@ -3,6 +3,7 @@ from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 
+from apps.accounts.models import User
 from apps.analytics.models import ActivityEvent
 from apps.analytics.services import record_activity
 from apps.audit.models import AuditEvent
@@ -10,6 +11,7 @@ from apps.courses.models import Course, Enrolment
 from apps.upload_validation import validated_upload_metadata
 
 from .models import Assignment, GradeRevision, Submission, SubmissionVersion
+from .policies import NON_MEMBER_MAX_VERSION
 
 
 def _require_owner(actor, course):
@@ -171,8 +173,10 @@ def submit_resubmission(*, actor, assignment, upload):
     saved_key = None
     try:
         with transaction.atomic():
-            assignment = Assignment.objects.select_related("course").get(
-                pk=assignment.pk
+            assignment = (
+                Assignment.objects.select_for_update()
+                .select_related("course")
+                .get(pk=assignment.pk)
             )
             if assignment.status != Assignment.Status.PUBLISHED:
                 raise ValidationError("This assignment is not accepting submissions.")
@@ -205,6 +209,19 @@ def submit_resubmission(*, actor, assignment, upload):
             )
             if latest_version_number is None:
                 raise ValidationError("Submit a first version before resubmitting.")
+            membership_status = (
+                User.objects.select_for_update()
+                .values_list("membership_status", flat=True)
+                .get(pk=actor.pk)
+            )
+            if (
+                membership_status == User.MembershipStatus.NON_MEMBER
+                and latest_version_number >= NON_MEMBER_MAX_VERSION
+            ):
+                raise ValidationError(
+                    "You have reached the non-member limit of 2 resubmissions.",
+                    code="resubmission_limit",
+                )
             version = SubmissionVersion(
                 submission=submission,
                 version_number=latest_version_number + 1,

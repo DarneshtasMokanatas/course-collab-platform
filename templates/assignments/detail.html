@@ -41,6 +41,9 @@
         <div><dt>Late first submissions</dt><dd>{% if assignment.allow_late_submissions %}Accepted{% else %}Not accepted{% endif %}</dd></div>
         <div><dt>Resubmission</dt><dd>{% if assignment.allow_resubmission %}Enabled before deadline{% else %}Not enabled{% endif %}</dd></div>
       </dl>
+      {% if not owner and resubmission_policy %}
+        {% include "includes/resubmission_policy.html" %}
+      {% endif %}
     </aside>
   </header>
 

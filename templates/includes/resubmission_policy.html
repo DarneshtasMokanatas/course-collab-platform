@@ -1,0 +1,17 @@
+<section class="resubmission-policy" aria-labelledby="resubmission-policy-title">
+  <h3 id="resubmission-policy-title">Resubmission allowance</h3>
+  <p><strong>{{ resubmission_policy.allowance_message }}</strong></p>
+  <dl class="rule-list">
+    <div>
+      <dt>Current submission version</dt>
+      <dd>{% if resubmission_policy.current_version_number %}Version {{ resubmission_policy.current_version_number }}{% else %}No submission yet{% endif %}</dd>
+    </div>
+    {% if not resubmission_policy.is_member %}
+      <div><dt>Resubmissions used</dt><dd>{{ resubmission_policy.resubmissions_used }} of 2</dd></div>
+      <div><dt>Resubmissions remaining</dt><dd>{{ resubmission_policy.resubmissions_remaining }}</dd></div>
+    {% endif %}
+  </dl>
+  {% if resubmission_policy.limit_reached %}
+    <p class="alert warning" role="status">The non-member resubmission limit has been reached. Membership does not allow submissions after the deadline.</p>
+  {% endif %}
+</section>

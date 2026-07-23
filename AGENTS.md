@@ -84,6 +84,15 @@ users default to `NON_MEMBER`. Actual membership changes create append-only audi
 events. Ordinary account and profile forms never accept membership state. No
 payment, billing, renewal, checkout, or subscription platform is in scope.
 
+For resubmissions, version 1 is the initial submission and does not consume a
+resubmission. A `NON_MEMBER` may create at most two resubmissions, so versions 1,
+2, and 3 are accepted and version 4 is rejected. A `MEMBER` has no count ceiling,
+but membership never bypasses publication status, active enrolment, ownership,
+upload validation, `allow_resubmission`, or the strict `now < due_at` rule.
+Existing histories above version 3 remain immutable; a non-member with such a
+history cannot add another version. Enforce the count under the submission row
+lock before saving uploaded bytes.
+
 ## 3. Architecture decision
 
 ### 3.1 Selected stack

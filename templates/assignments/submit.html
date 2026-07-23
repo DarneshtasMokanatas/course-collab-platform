@@ -26,6 +26,7 @@
         <div><dt>Allowed files</dt><dd>{{ assignment.allowed_extensions|join:", " }}</dd></div>
         <div><dt>Maximum size</dt><dd>{{ assignment.max_upload_bytes|filesizeformat }}</dd></div>
       </dl>
+      {% include "includes/resubmission_policy.html" %}
       {% if is_resubmission %}<p>Your earlier versions remain available. This upload becomes the current version.</p>{% endif %}
     </aside>
   </div>

@@ -14,6 +14,7 @@ from apps.courses.models import Course, Enrolment
 
 from .forms import AssignmentForm, GradeRevisionForm, SubmissionForm
 from .models import Assignment, GradeRevision, Submission, SubmissionVersion
+from .policies import resubmission_policy
 from .services import (
     create_assignment,
     create_grade_revision,
@@ -142,6 +143,8 @@ def assignment_detail(request, course_id, assignment_id):
     student_submission = None
     submission_count = None
     can_resubmit = False
+    policy = None
+    now = timezone.now()
     latest_released_grade = None
     if owner:
         submission_count = assignment.submissions.count()
@@ -151,12 +154,13 @@ def assignment_detail(request, course_id, assignment_id):
             .prefetch_related("versions")
             .first()
         )
-        can_resubmit = bool(
-            student_submission
-            and assignment.status == Assignment.Status.PUBLISHED
-            and assignment.allow_resubmission
-            and timezone.now() < assignment.due_at
+        policy = resubmission_policy(
+            user=request.user,
+            assignment=assignment,
+            submission=student_submission,
+            now=now,
         )
+        can_resubmit = policy.can_resubmit
         if student_submission:
             latest_released_grade = (
                 student_submission.grade_revisions.filter(released_at__isnull=False)
@@ -180,8 +184,9 @@ def assignment_detail(request, course_id, assignment_id):
             "student_submission": student_submission,
             "submission_count": submission_count,
             "can_resubmit": can_resubmit,
+            "resubmission_policy": policy,
             "latest_released_grade": latest_released_grade,
-            "now": timezone.now(),
+            "now": now,
         },
     )
 
@@ -196,23 +201,24 @@ def assignment_submit(request, course_id, assignment_id):
     )
     if not _active_student(request.user, assignment.course):
         raise Http404
-    existing_submission = Submission.objects.filter(
+    existing_submission = (
+        Submission.objects.filter(
+            assignment=assignment,
+            student=request.user,
+        )
+        .prefetch_related("versions")
+        .first()
+    )
+    now = timezone.now()
+    policy = resubmission_policy(
+        user=request.user,
         assignment=assignment,
-        student=request.user,
-    ).exists()
+        submission=existing_submission,
+        now=now,
+    )
     if request.method == "GET" and existing_submission:
-        if not assignment.allow_resubmission:
-            messages.error(request, "Resubmission is not enabled for this assignment.")
-            return redirect(
-                "assignments:detail",
-                course_id=course_id,
-                assignment_id=assignment_id,
-            )
-        if timezone.now() >= assignment.due_at:
-            messages.error(
-                request,
-                "The resubmission deadline has passed.",
-            )
+        if not policy.can_resubmit:
+            messages.error(request, policy.blocked_message)
             return redirect(
                 "assignments:detail",
                 course_id=course_id,
@@ -231,6 +237,22 @@ def assignment_submit(request, course_id, assignment_id):
             )
         except (PermissionDenied, ValidationError) as error:
             form.add_error(None, error)
+            request.user.refresh_from_db(fields=["membership_status"])
+            existing_submission = (
+                Submission.objects.filter(
+                    assignment=assignment,
+                    student=request.user,
+                )
+                .prefetch_related("versions")
+                .first()
+            )
+            now = timezone.now()
+            policy = resubmission_policy(
+                user=request.user,
+                assignment=assignment,
+                submission=existing_submission,
+                now=now,
+            )
         else:
             messages.success(
                 request,
@@ -246,8 +268,9 @@ def assignment_submit(request, course_id, assignment_id):
         {
             "assignment": assignment,
             "form": form,
-            "is_resubmission": existing_submission,
-            "now": timezone.now(),
+            "is_resubmission": existing_submission is not None,
+            "resubmission_policy": policy,
+            "now": now,
         },
     )
 
