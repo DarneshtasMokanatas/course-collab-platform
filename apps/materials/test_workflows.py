@@ -10,7 +10,7 @@ from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
-from apps.courses.models import Course, Enrolment
+from apps.courses.models import Course, CourseSection, Enrolment
 
 from .models import Material, MaterialVersion
 from .services import add_material_version, create_material
@@ -99,6 +99,33 @@ class MaterialWorkflowTests(TestCase):
         self.assertTrue(
             version_two.storage_key.startswith(f"courses/{self.course.id}/materials/")
         )
+
+    def test_owner_can_create_material_in_a_course_section_through_the_form(self):
+        section = CourseSection.objects.create(
+            course=self.course,
+            title="Foundations",
+            position=1,
+        )
+        self.client.force_login(self.instructor)
+
+        response = self.client.post(
+            reverse("materials:new", args=[self.course.id]),
+            {
+                "section": section.id,
+                "title": "Section slides",
+                "description": "Week one",
+                "status": Material.Status.PUBLISHED,
+                "file": self.upload(),
+            },
+        )
+
+        material = Material.objects.get(title="Section slides")
+        self.assertRedirects(
+            response,
+            reverse("materials:list", args=[self.course.id]),
+        )
+        self.assertEqual(material.section, section)
+        self.assertEqual(material.versions.get().version_number, 1)
 
     def test_protected_download_allows_enrolled_student_only_for_published_material(
         self,

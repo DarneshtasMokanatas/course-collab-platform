@@ -59,8 +59,7 @@ def material_list(request, course_id):
 @login_required
 def material_new(request, course_id):
     course = _owner_course(request.user, course_id)
-    form = MaterialForm(request.POST or None, request.FILES or None)
-    form.fields["section"].queryset = course.sections.all()
+    form = MaterialForm(request.POST or None, request.FILES or None, course=course)
     if request.method == "POST" and form.is_valid():
         try:
             create_material(
